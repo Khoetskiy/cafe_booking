@@ -1,0 +1,82 @@
+name: cafe_booking_prod
+
+volumes:
+  pg_data:
+  media_data:
+
+services:
+  db:
+    image: postgres:17-alpine
+    env_file:
+      - .env
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pg_data:/var/lib/postgresql/data/pgdata
+    command: >
+      postgres -c max_connections=1000
+               -c shared_buffers=256MB
+               -c effective_cache_size=768MB
+               -c maintenance_work_mem=64MB
+               -c checkpoint_completion_target=0.7
+               -c wal_buffers=16MB
+               -c default_statistics_target=100
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  backend:
+    image: khoetskiy/cafe_backend:latest
+    env_file:
+      - .env
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery:
+    image: khoetskiy/cafe_backend:latest
+    working_dir: /app
+    entrypoint: []
+    command: celery -A app.core.celery_app.celery_app worker -l info -E
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  flower:
+    image: khoetskiy/cafe_backend:latest
+    working_dir: /app
+    entrypoint: []
+    command: celery -A app.core.celery_app.celery_app flower --port=5555
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - celery
+    expose:
+      - "5555"
+    restart: unless-stopped
+
+  gateway:
+    image: nginx:1.25-alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    env_file:
+      - .env
+    ports:
+      - 8000:80
+    depends_on:
+      - backend
+    restart: unless-stopped

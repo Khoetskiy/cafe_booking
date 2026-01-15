@@ -1,0 +1,59 @@
+import re
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[3]
+INFRA_DIR = BASE_DIR / 'infra'
+
+# --- Docker ---
+DEFAULT_LOCAL_HOST = 'localhost'
+ENV_RUN_IN_DOCKER = 'RUN_IN_DOCKER'
+TRUE_VALUE = 'yes'
+
+# --- Логирование ---
+LOGS_DIR = Path('logs')
+LOG_FILE = LOGS_DIR / 'app.log'
+LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 МБ
+LOG_BACKUP_COUNT = 10
+
+# --- User ---
+ROLE_ADMIN = 'admin'
+ROLE_MANAGER = 'manager'
+ROLE_USER = 'user'
+MIN_LENGTH_USER_USERNAME = 3
+MAX_LENGTH_USER_USERNAME = 50
+MAX_LENGTH_USER_EMAIL = 255
+MAX_LENGTH_USER_PHONE = 50
+MAX_LENGTH_USER_PASSWORD_HASH = 255
+MAX_LENGTH_USER_TG_ID = 50
+MIN_LENGTH_USER_PASSWORD = 6
+MAX_LENGTH_USER_PASSWORD = 50
+PASSWORD_PATTERN = re.compile(r'^[A-Za-z0-9_@#\$%!?\&\*]+$')
+EMAIL_PATTERN = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+PHONE_PATTERN = re.compile(r'^(\+7|8)\d{10}$')
+
+# --- Slot ---
+MAX_LENGTH_SLOT_DESCRIPTION = 255
+
+# --- Cafe ---
+MIN_LENGTH_CAFE_NAME = 3
+MAX_LENGTH_CAFE_NAME = 255
+MIN_LENGTH_CAFE_ADDRESS = 5
+MAX_LENGTH_CAFE_ADDRESS = 200
+MIN_LENGTH_CAFE_PHONE = 8
+MAX_LENGTH_CAFE_PHONE = 12
+MAX_LENGTH_CAFE_DESCRIPTION = 2000
+
+# --- Table ---
+MIN_SEATS_COUNT = 1
+MAX_SEATS_COUNT = 24
+
+# ---Media ---
+MAX_LENGTH_MEDIA_FILEPATH = 2048
+MEDIA_PATH_DISPLAY_LENGTH = 60
+MAX_IMAGE_SIZE_READ = 5
+MAX_IMAGE_SIZE = 5 * 1024 * 1024
+MEDIA_DIR = Path('media')
+ALLOWED_CONTENT_TYPES = {'image/jpeg', 'image/png'}
+
+# --- Booking ---
+MAX_LENGTH_BOOKING_NOTE = 255
