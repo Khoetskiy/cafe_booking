@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import CheckConstraint, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.constants import MAX_SEATS_COUNT, MIN_SEATS_COUNT
 from app.core.db import Base
-from app.models.cafe import Cafe
+
+if TYPE_CHECKING:
+    from app.models.cafe import Cafe
 
 
 class Table(Base):

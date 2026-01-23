@@ -83,3 +83,176 @@ dependencies = [
   "ruff==0.11.11",
   "pre-commit==4.2.0",
 ]
+
+[tool.ruff]
+src = ["."]
+line-length = 79  # 88 (Black)
+indent-width = 4
+target-version = "py312"
+required-version = ">=0.11.11"
+# preview = true
+
+exclude = [
+    ".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg",
+    ".ipynb_checkpoints", ".mypy_cache", ".nox", ".pants.d",
+    ".pyenv", ".pytest_cache", ".pytype", ".ruff_cache", ".svn",
+    ".tox", ".venv*", ".vscode", "__pypackages__", "_build",
+    "buck-out", "build", "dist", "node_modules", "*/site-packages/*",
+    "*/migrations/*", "*/alembic/*"
+]
+
+[tool.ruff.lint]
+select = [
+    # === BASIC ERRORS ===
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "D",   # docstring
+
+    # === SYNTAX UPDATE AND SIMPLIFICATION ===
+    "UP",  # pyupgrade
+    "FLY", # flynt
+    "SIM", # flake8-simplify
+    "C4",  # flake8-comprehensions
+    "PIE", # flake8-pie
+    "PERF", # Perflint
+    "FURB", # refurb
+    "RUF",  # Ruff-specific rules
+
+    # === IMPORTS ===
+    "I",   # isort
+    "TID", # flake8-tidy-imports
+    "TCH", # flake8-type-checking
+    "ICN", # flake8-import-conventions
+    "INP", # flake8-no-pep420
+
+    # === SAFETY AND EXCEPTIONS ===
+    "S",   # flake8-bandit
+    "TRY", # tryceratops
+    "EM",  # flake8-errmsg
+    "EXE", # flake8-executable
+
+    # === LOGGING AND DEBUG ===
+    "G",   # flake8-logging-format
+    "LOG", # flake8-logging
+    "T10", # flake8-debugger
+    "T20", # flake8-print
+
+    # === STYLE ===
+    "PT",  # flake8-pytest-style
+    # "PL",  # Pylint (Много шума)
+    "INT", # flake8-gettext
+    "TD",  # flake8-todos
+    "PGH", # pygrep-hooks
+
+    # === CODE QUALITY AND PYTHON PATTERNS ===
+    "N",   # pep8-naming
+    "B",   # flake8-bugbear
+    "A",   # flake8-builtins
+    "RET", # flake8-return
+    "RSE", # flake8-raise
+    "SLF", # flake8-self
+    "Q",   # flake8-quotes
+    "ISC", # flake8-implicit-str-concat
+    "COM", # flake8-commas
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+
+    # === TYPE ANNOTATIONS ===
+    "ANN", # flake8-annotations
+    # "FA",  # flake8-future-annotations
+    # "ANN001",  # Аргументы функций
+    # "ANN201",  # Возвращаемые значения публичных функций
+
+    # === ASYNCHRONY AND COMPETITIVENESS ===
+    "ASYNC",  # Checks for correct use of async/await and non-blocking calls
+
+    # === UNUSED ===
+    # "FIX", # flake8-fixme
+    # "PYI", # flake8-pyi
+    # "YTT", # flake8-2020
+    # "ERA", # eradicate
+]
+
+ignore = [
+    "S101",   # assert allowed
+
+    "D100",   # no need for module docstring
+    "D104",   # no need for package docstring
+    "D105",   # magic methods
+    "D106",   # metaclasses
+    "D107",   # __init__
+    "D205",   # 1 blank line required
+    "D413",   # Missing blank line after last section
+    "D417",   # Missing trailing newline in docstring
+    # "D203",   # incorrect-blank-line-before-class (conflicts with D211)
+    # "D212",   # Multi-line docstring summary should start at the first line
+
+    "ANN401",  # Allowed Any
+    "N818",  # Allowed exception names
+
+    # TODO
+    "TD001", "TD002", "TD003",
+
+    # Unicode
+    "RUF001", "RUF002", "RUF003",
+
+    "B008",
+    "TRY003",
+    "EM101",
+    "B904",
+    "ARG001",
+    "FBT003",
+    "UP038",
+
+    # --- Conflicts with the Ruff formatter ---
+    "COM812",  # trailing comma
+    "ISC001",  # string concatenation
+]
+
+unfixable = [
+    "F401",  # Unused imports
+    "F841"   # Unused variables
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+known-first-party = ["myproject"]
+known-local-folder = ["."]
+lines-between-types = 0
+case-sensitive = true
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+multiline-quotes = "double"
+docstring-quotes = "double"
+avoid-escape = true
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.ruff.lint.flake8-type-checking]
+strict = false
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10  # Error C901 if cyclomatic complexity > 10
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "E401"]
+"scripts/**/*.py" = ["T20"]
+"**/migrations/*.py" = ["ALL"]
+"*/settings/*.py" = ["F403", "F405", "E501", "T201", "PGH004", "TID252"]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false
+docstring-code-format = true
+docstring-code-line-length = 60

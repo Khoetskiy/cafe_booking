@@ -137,12 +137,8 @@ class SlotService:
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
-        if user.role == UserRole.ADMIN:
+        if user.role == UserRole.ADMIN or can_manage_cafe(user, cafe.id):
             effective_show_all = show_all
-
-        elif can_manage_cafe(user, cafe.id):
-            effective_show_all = show_all
-
         else:
             ensure_cafe_is_active(cafe)
             effective_show_all = False

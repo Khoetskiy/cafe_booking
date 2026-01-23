@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def utc_now() -> datetime:
     """Возвращает текущее время в UTC."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)

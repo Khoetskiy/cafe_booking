@@ -7,12 +7,11 @@ from .user import User
 
 __all__ = [
     'Booking',
-    'TableSlotBooking',
-    'Cafe',
     'BookingStatus',
-    'UserRole',
+    'Cafe',
     'Slot',
     'Table',
+    'TableSlotBooking',
     'User',
-
+    'UserRole',
 ]

@@ -58,4 +58,4 @@ async def login(
         )
 
     access_token = create_access_token(user)
-    return AuthToken(access_token=access_token, token_type='bearer')
+    return AuthToken(access_token=access_token, token_type='bearer')  # noqa: S106
