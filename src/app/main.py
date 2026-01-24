@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import main_router
+from app.api import api_v1_router
 from app.core.config import settings
 from app.core.error_handlers import (
     http_exception_handler,
@@ -44,7 +44,10 @@ app = FastAPI(
     openapi_tags=OPENAPI_TAGS,
 )
 
-app.include_router(main_router)
+app.include_router(
+    api_v1_router,
+    prefix='/api/v1',
+)
 
 app.add_middleware(
     CORSMiddleware,
