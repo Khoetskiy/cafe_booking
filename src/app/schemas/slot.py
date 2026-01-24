@@ -30,11 +30,14 @@ class TimeSlotBase(BaseModel):
     @model_validator(mode='after')
     def validate_time_range(self) -> Self:
         """Проверяет, что время окончания позже времени начала."""
-        if self.start_time is not None and self.end_time is not None:
-            if self.start_time >= self.end_time:
-                raise ValueError(
-                    'Время окончания должно быть позже времени начала',
-                )
+        if (
+            self.start_time is not None
+            and self.end_time is not None
+            and self.start_time >= self.end_time
+        ):
+            raise ValueError(
+                'Время окончания должно быть позже времени начала',
+            )
         return self
 
 

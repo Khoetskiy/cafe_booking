@@ -7,7 +7,7 @@ from app.core.celery_app import celery_app
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(name="booking.send_reminder", bind=True, max_retries=3)
+@celery_app.task(name='booking.send_reminder', bind=True, max_retries=3)
 def send_booking_reminder(self: Task, booking_id: int) -> None:
     """Задача напоминания о бронировании.
 
@@ -18,7 +18,7 @@ def send_booking_reminder(self: Task, booking_id: int) -> None:
     """
     try:
         logger.info(
-            "[REMINDER] Sending reminder for booking_id=%s",
+            '[REMINDER] Sending reminder for booking_id=%s',
             booking_id,
         )
         # TODO: интеграция с уведомлениями

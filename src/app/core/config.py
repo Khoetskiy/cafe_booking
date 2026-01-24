@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     postgres_host: str
     postgres_port: int
 
+    # Flower
+    flower_user: str
+    flower_password: str | None = None
+
     # Redis
     redis_host: str = 'redis'
     redis_port: int = 6379

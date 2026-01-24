@@ -1,4 +1,4 @@
-from typing import Any, Generic, Type, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, and_, or_, select
@@ -22,7 +22,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     """
 
-    def __init__(self, model: Type[ModelType]) -> None:
+    def __init__(self, model: type[ModelType]) -> None:
         """Создаёт CRUD-объект для указанной SQLAlchemy-модели."""
         self.model = model
 
@@ -276,10 +276,11 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         valid_relationships = self.model.__mapper__.relationships.keys()
         for attr, objs in related.items():
             if attr not in valid_relationships:
-                raise ValueError(
+                msg = (
                     f'Неизвестное поле "{attr}" '
-                    f'для модели "{self.model.__name__}"',
+                    f'для модели "{self.model.__name__}"'
                 )
+                raise ValueError(msg)
             setattr(db_obj, attr, objs)
 
     def _build_condition(
@@ -324,9 +325,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         value = condition.get('value')
 
         if field not in self._get_model_fields():
-            raise ValueError(
-                f'Недопустимое поле фильтрации: "{field}".',
-            )
+            msg = f'Недопустимое поле фильтрации: "{field}".'
+            raise ValueError(msg)
 
         column = getattr(self.model, field)
 
@@ -348,6 +348,5 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
                     'Для операции "in" value должен быть итерируемым объектом',
                 )
             return column.in_(value)
-        raise ValueError(
-            f'Неподдерживаемая операция фильтрации: "{op}"',
-        )
+        msg = f'Неподдерживаемая операция фильтрации: "{op}"'
+        raise ValueError(msg)

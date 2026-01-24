@@ -135,19 +135,23 @@ class BookingService:
             effective_show_all = show_all
 
             if cafe_id is not None:
-                filters.append({
-                    'field': 'cafe_id',
-                    'op': 'eq',
-                    'value': cafe_id,
-                })
+                filters.append(
+                    {
+                        'field': 'cafe_id',
+                        'op': 'eq',
+                        'value': cafe_id,
+                    }
+                )
 
             if user_id is not None:
                 user = await get_user_or_404(user_id=user_id, session=session)
-                filters.append({
-                    'field': 'user_id',
-                    'op': 'eq',
-                    'value': user.id,
-                })
+                filters.append(
+                    {
+                        'field': 'user_id',
+                        'op': 'eq',
+                        'value': user.id,
+                    }
+                )
 
         elif cafe and can_manage_cafe(current_user, cafe.id):
             effective_show_all = show_all
@@ -155,34 +159,42 @@ class BookingService:
 
             if user_id is not None:
                 user = await get_user_or_404(user_id=user_id, session=session)
-                filters.append({
-                    'field': 'user_id',
-                    'op': 'eq',
-                    'value': user.id,
-                })
+                filters.append(
+                    {
+                        'field': 'user_id',
+                        'op': 'eq',
+                        'value': user.id,
+                    }
+                )
 
         else:
             effective_show_all = False
 
-            filters.append({
-                'field': 'user_id',
-                'op': 'eq',
-                'value': current_user.id,
-            })
+            filters.append(
+                {
+                    'field': 'user_id',
+                    'op': 'eq',
+                    'value': current_user.id,
+                }
+            )
 
             if cafe_id is not None:
-                filters.append({
-                    'field': 'cafe_id',
-                    'op': 'eq',
-                    'value': cafe_id,
-                })
+                filters.append(
+                    {
+                        'field': 'cafe_id',
+                        'op': 'eq',
+                        'value': cafe_id,
+                    }
+                )
 
         if not effective_show_all:
-            filters.append({
-                'field': 'is_active',
-                'op': 'eq',
-                'value': True,
-            })
+            filters.append(
+                {
+                    'field': 'is_active',
+                    'op': 'eq',
+                    'value': True,
+                }
+            )
 
         bookings = await booking_crud.get_multi(
             filters=filters,
@@ -276,7 +288,7 @@ class BookingService:
 
         await booking_crud.update(
             db_obj=booking,
-            obj_in={"reminder_task_id": task_id},
+            obj_in={'reminder_task_id': task_id},
             session=session,
         )
 
@@ -406,7 +418,7 @@ class BookingService:
 
         await booking_crud.update(
             db_obj=booking,
-            obj_in={"reminder_task_id": new_task_id},
+            obj_in={'reminder_task_id': new_task_id},
             session=session,
         )
 
@@ -460,7 +472,7 @@ class BookingService:
 
         await booking_crud.update(
             db_obj=booking,
-            obj_in={"reminder_task_id": None},
+            obj_in={'reminder_task_id': None},
             session=session,
         )
 
@@ -526,10 +538,7 @@ class BookingService:
         if can_manage_cafe(user, booking.cafe_id):
             return True
 
-        if booking.user_id == user.id:
-            return True
-
-        return False
+        return booking.user_id == user.id
 
     def _can_update_booking(self, user: User, booking: Booking) -> bool:
         """Проверяет, имеет ли пользователь право обновлять бронирование.
@@ -551,14 +560,11 @@ class BookingService:
         """
         self._ensure_booking_can_be_updated(booking)
 
-        if (
+        return (
             user.role == UserRole.ADMIN
             or can_manage_cafe(user, booking.cafe_id)
             or booking.user_id == user.id
-        ):
-            return True
-
-        return False
+        )
 
     def _ensure_booking_can_be_updated(
         self,

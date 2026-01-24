@@ -130,9 +130,6 @@ class Booking(Base):
     user: Mapped['User'] = relationship('User', lazy='selectin')
     cafe: Mapped['Cafe'] = relationship('Cafe', lazy='selectin')
 
-    user: Mapped['User'] = relationship('User', lazy='selectin')
-    cafe: Mapped['Cafe'] = relationship('Cafe', lazy='selectin')
-
     tables_slots: Mapped[list['TableSlotBooking']] = relationship(
         'TableSlotBooking',
         back_populates='booking',

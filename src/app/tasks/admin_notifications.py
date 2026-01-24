@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(
-    name="admin.notify_booking_event",
+    name='admin.notify_booking_event',
     bind=True,
     max_retries=3,
 )
@@ -26,13 +26,12 @@ def notify_admin_about_booking(
     """
     try:
         logger.info(
-            "[ADMIN NOTIFY] Booking %s: booking_id=%s",
+            '[ADMIN NOTIFY] Booking %s: booking_id=%s',
             event,
             booking_id,
         )
 
-        # TODO:
-        # здесь позже можно добавить:
+        # TODO: здесь позже можно добавить:
         # - отправку email
         # - telegram bot
 
