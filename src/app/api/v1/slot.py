@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_async_session
 from app.core.responses import (
-    BAD_REQUEST_RESPONSE,
     CONFLICT_RESPONSE,
     CREATED_RESPONSE,
     FORBIDDEN_RESPONSE,
@@ -51,14 +50,23 @@ async def get_time_slots_list(
             'По умолчанию показывает только активные слоты.'
         ),
     ),
-    session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
 ) -> list[TimeSlotInfo]:
-    """Получение списка временных слотов кафе.
+    """Возвращает список слотов в указанном кафе.
 
-    Список возвращается с учетом роли пользователя и активности кафе.
+    Список формируется с учетом роли пользователя и активности кафе.
     Параметр `show_all` доступен только администраторам и менеджерам
     кафе, которым они управляют.
+
+    Args:
+        cafe_id: Идентификатор кафе.
+        show_all: Флаг показа всех слотов, включая неактивные.
+        user: Текущий аутентифицированный пользователь.
+        session: Асинхронная SQLAlchemy-сессия.
+
+    Returns:
+        Список слотов кафе.
     """
     return await slot_service.get_slots_list(
         cafe_id=cafe_id,
@@ -75,7 +83,6 @@ async def get_time_slots_list(
     summary='Новый временной слот в кафе',
     responses={
         **CREATED_RESPONSE,
-        **BAD_REQUEST_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
         **FORBIDDEN_RESPONSE,
         **NOT_FOUND_RESPONSE,
@@ -98,7 +105,8 @@ async def create_time_slot(
 ) -> TimeSlotInfo:
     """Создание нового временного слота в кафе.
 
-    Позволяет создать временной слот в указанном кафе.
+    Позволяет добавить новый слот в кафе с учетом прав доступа пользователя.
+
     Доступ предоставляется:
     - администраторам — для любого кафе;
     - менеджерам — только для тех кафе, которыми они управляют.
@@ -106,6 +114,21 @@ async def create_time_slot(
     При создании выполняется валидация временного диапазона,
     а также проверка уникальности и отсутствия пересечений
     с существующими активными слотами.
+
+    Args:
+        cafe_id: Идентификатор кафе, в котором создаётся слот.
+        slot_in: Данные для создания слота.
+        user: Текущий аутентифицированный пользователь.
+        session: Асинхронная SQLAlchemy-сессия.
+
+    Returns:
+        Информация о созданном слоте.
+
+    Raises:
+        HTTPException:
+            - 403, если у пользователя недостаточно прав;
+            - 404, если кафе не найдено;
+            - 422, если данные не прошли валидацию.
     """
     return await slot_service.create_slot(
         cafe_id=cafe_id,
@@ -133,7 +156,6 @@ async def create_time_slot(
     ),
     responses={
         **OK_RESPONSE,
-        **BAD_REQUEST_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
         **FORBIDDEN_RESPONSE,
         **NOT_FOUND_RESPONSE,
@@ -172,8 +194,8 @@ async def get_time_slot_by_id(
 
     """
     return await slot_service.get_slot_by_id(
-        slot_id=slot_id,
         cafe_id=cafe_id,
+        slot_id=slot_id,
         user=user,
         session=session,
     )
@@ -194,6 +216,7 @@ async def get_time_slot_by_id(
         **UNAUTHORIZED_RESPONSE,
         **FORBIDDEN_RESPONSE,
         **NOT_FOUND_RESPONSE,
+        **CONFLICT_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
     },
 )
