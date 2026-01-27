@@ -7,95 +7,63 @@ from app.schemas.cafe import CafeShortInfo
 
 
 class TableBase(BaseModel):
-    """Базовая схема данных стола, содержащая общие поля для всех операций."""
+    """Базовая схема для стола."""
 
     seats_count: int = Field(
         ...,
         ge=MIN_SEATS_COUNT,
         le=MAX_SEATS_COUNT,
-        title='Количество мест за столом.',
+        examples=[4],
+        description='Количество посадочных мест за столом',
     )
     description: str | None = Field(
         None,
-        title='Описание, характеристики стола.',
-    )
-
-    model_config = ConfigDict(
-        extra='forbid',
+        examples=['Стол у окна на 4 места'],
+        description='Описание или характеристика стола',
     )
 
 
 class TableCreate(TableBase):
-    """Схема для создания нового стола в системе."""
+    """Схема для создания нового стола."""
+
+    model_config = ConfigDict(extra='forbid')
 
 
 class TableUpdate(BaseModel):
     """Схема для обновления данных существующего стола."""
 
-    description: str | None = Field(
-        None,
-        title='Описание, характеристики стола.',
-    )
     seats_count: int | None = Field(
         None,
         ge=MIN_SEATS_COUNT,
         le=MAX_SEATS_COUNT,
-        title='Количество мест за столом (опционально)',
+        examples=[4],
+        description='Количество посадочных мест за столом',
     )
-    is_active: bool | None = Field(
+    description: str | None = Field(
         None,
-        title='Флаг активности стола.',
-        description='Если False, стол не отображается в открытых списках.',
+        examples=['Стол у окна на 4 места'],
+        description='Описание или характеристика стола',
     )
+    is_active: bool | None = Field(None, description='Флаг активности стола')
 
-    model_config = ConfigDict(
-        extra='forbid',
-    )
+    model_config = ConfigDict(extra='forbid')
 
 
 class TableInfo(TableBase):
-    """Полная схема стола из БД со всеми полями."""
+    """Полная информация о столе."""
 
-    id: int = Field(
-        ...,
-        title='Идентификатор',
-        description='Уникальный идентификатор стола.',
-    )
-    cafe: CafeShortInfo = Field(
-        ...,
-        title='Инфорация о кафе',
-        description='Вложенная схема InlineCafe.',
-    )
-    is_active: bool = Field(
-        ...,
-        title='Флаг активности стола.',
-        description='Если False, стол не отображается в открытых списках.',
-    )
-    created_at: datetime = Field(
-        ...,
-        title='Дата создания',
-        description='Дата и время создания записи.',
-    )
-    updated_at: datetime = Field(
-        ...,
-        title='Дата обновления',
-        description='Дата и время изменения записи.',
-    )
+    id: int = Field(..., description='ID стола')
+    cafe: CafeShortInfo = Field(..., description='Информация о кафе')
+    is_active: bool = Field(..., description='Флаг активности стола')
+    created_at: datetime = Field(..., description='Дата и время создания')
+    updated_at: datetime = Field(..., description='Дата и время обновления')
 
-    model_config = ConfigDict(
-        from_attributes=True,
-    )
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TableShortInfo(TableBase):
-    """Сокращённая информация о столе."""
+    """Краткая информация о столе."""
 
-    id: int = Field(
-        ...,
-        title='Идентификатор',
-        description='Уникальный идентификатор стола.',
-    )
+    id: int = Field(..., description='ID стола')
 
-    model_config = ConfigDict(
-        from_attributes=True,
-    )
+    model_config = ConfigDict(from_attributes=True)

@@ -11,7 +11,16 @@ if TYPE_CHECKING:
 
 
 class Table(Base):
-    """Информация о столах для бронирования."""
+    """Модель стола для бронирования в кафе.
+
+    Представляет отдельный стол в конкретном кафе и используется
+    при бронировании для определения доступного количества мест.
+
+    Attributes:
+        cafe_id: Идентификатор кафе, к которому относится стол.
+        description: Описание или характеристики стола.
+        seats_count: Количество посадочных мест за столом.
+    """
 
     cafe_id: Mapped[int] = mapped_column(
         ForeignKey('cafe.id', ondelete='RESTRICT'),
@@ -45,9 +54,9 @@ class Table(Base):
 
     def __repr__(self) -> str:
         return (
-            f'Table id={self.id}, '
-            f'seats_count={self.seats_count}, '
-            f'cafe_id={self.cafe_id}'
+            f'<Table id={self.id}, '
+            f'cafe_id={self.cafe_id}, '
+            f'seats_count={self.seats_count}>'
         )
 
     def __str__(self) -> str:
