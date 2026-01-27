@@ -248,6 +248,7 @@ allow-star-arg-any = true
 "scripts/**/*.py" = ["T20"]
 "**/migrations/*.py" = ["ALL"]
 "*/settings/*.py" = ["F403", "F405", "E501", "T201", "PGH004", "TID252"]
+"*/schemas/slot.py" = ["TRY004"]
 
 [tool.ruff.format]
 quote-style = "single"
