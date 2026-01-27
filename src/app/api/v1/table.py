@@ -13,7 +13,7 @@ from app.core.responses import (
     UNAUTHORIZED_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
 )
-from app.models import Table, User
+from app.models import User
 from app.schemas import TableCreate, TableInfo, TableUpdate
 from app.services.auth import current_active_user, current_admin_or_manager
 from app.services.table import table_service
@@ -56,7 +56,7 @@ async def get_tables_list(
     ),
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
-) -> list[Table]:
+) -> list[TableInfo]:
     """Возвращает список столов в указанном кафе.
 
     Список формируется с учетом роли пользователя и состояния кафе.
@@ -111,7 +111,7 @@ async def create_table(
     table_in: TableCreate,
     user: User = Depends(current_admin_or_manager),
     session: AsyncSession = Depends(get_async_session),
-) -> Table:
+) -> TableInfo:
     """Создает новый стол в указанном кафе.
 
     Позволяет добавить новый стол в кафе с учетом
@@ -178,7 +178,7 @@ async def get_table_by_id(
     table_id: int = Path(..., description='ID стола'),
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
-) -> Table:
+) -> TableInfo:
     """Возвращает информацию о столе по его идентификатору.
 
     Доступ к столу определяется ролью пользователя и состоянием кафе.
@@ -237,7 +237,7 @@ async def update_table(
     table_in: TableUpdate,
     user: User = Depends(current_admin_or_manager),
     session: AsyncSession = Depends(get_async_session),
-) -> Table:
+) -> TableInfo:
     """Обновляет данные стола по его идентификатору.
 
     Позволяет частично обновить параметры стола
@@ -300,7 +300,7 @@ async def deactivate_table(
     table_id: int = Path(..., description='ID стола'),
     user: User = Depends(current_admin_or_manager),
     session: AsyncSession = Depends(get_async_session),
-) -> Table:
+) -> TableInfo:
     """Деактивирует стол по ID.
 
     Args:
