@@ -72,7 +72,7 @@ class TableService:
             session=session,
         )
 
-        if user.role == UserRole.ADMIN or can_manage_cafe(user, cafe.id):
+        if self._has_manage_permission(user, cafe):
             logger.info(
                 'Получен стол с расширенным доступом: %s',
                 table.__repr__(),
@@ -119,7 +119,7 @@ class TableService:
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
-        if user.role == UserRole.ADMIN or can_manage_cafe(user, cafe.id):
+        if self._has_manage_permission(user, cafe):
             effective_show_all = show_all
         else:
             ensure_cafe_is_active(cafe)
@@ -133,7 +133,7 @@ class TableService:
         )
 
         logger.info(
-            'Получен список столов. cafe_id=%d, count=%d, show_all=%s',
+            'Получен список столов: cafe_id=%s, count=%s, show_all=%s',
             cafe_id,
             len(tables),
             effective_show_all,
@@ -175,12 +175,6 @@ class TableService:
                         для создания стола в указанном кафе;
                 - 400: если количество мест некорректно;
         """
-        logger.info(
-            'Попытка создания стола в кафе: %s',
-            cafe_id,
-            extra={'user': f'{user.username} id={user.id}'},
-        )
-
         cafe = await get_cafe_or_404(cafe_id, session)
 
         self._ensure_manage_permission(user, cafe)
@@ -396,11 +390,28 @@ class TableService:
         Raises:
             HTTPException: Если у пользователя недостаточно прав.
         """
-        if user.role != UserRole.ADMIN and not can_manage_cafe(user, cafe.id):
+        if not self._has_manage_permission(user, cafe):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail='Недостаточно прав',
             )
+
+    def _has_manage_permission(self, user: User, cafe: Cafe) -> bool:
+        """Определяет, имеет ли пользователь права управления столами кафе.
+
+        Право управления предоставляется в следующих случаях:
+        - пользователь является администратором;
+        - пользователь является менеджером данного кафе.
+
+        Args:
+            user: Текущий пользователь.
+            cafe: Кафе, для которого проверяются права управления.
+
+        Returns:
+            True, если пользователь имеет права управления столами кафе.
+            False — в противном случае.
+        """
+        return user.role == UserRole.ADMIN or can_manage_cafe(user, cafe.id)
 
     @staticmethod
     def _validate_seats_count(seats_count: int) -> None:
