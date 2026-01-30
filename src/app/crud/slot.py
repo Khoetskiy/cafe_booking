@@ -22,12 +22,11 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
 
     Используется сервисным слоем для реализации бизнес-логики.
     """
-
     async def get_cafe_slots(
         self,
         cafe_id: int,
-        show_all: bool = False,
         *,
+        show_all: bool = False,
         session: AsyncSession,
     ) -> list[Slot]:
         """Возвращает список временных слотов, принадлежащих кафе.
