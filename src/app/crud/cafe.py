@@ -19,18 +19,6 @@ class CRUDCafe(CRUDBase[Cafe, CafeCreate, CafeUpdate]):
     методами, специфичными для модели Cafe.
     """
 
-    async def get_cafes(self, session: AsyncSession) -> list[Cafe]:
-        """Возвращает список всех кафе без фильтрации по статусу.
-
-        Args:
-            session: Асинхронная SQLAlchemy-сессия.
-
-        Returns:
-            Список всех объектов Cafe.
-
-        """
-        return await self.get_multi(session=session)
-
     async def get_active_cafes(self, session: AsyncSession) -> list[Cafe]:
         """Возвращает только активные кафе.
 
