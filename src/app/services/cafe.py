@@ -141,8 +141,8 @@ class CafeService:
 
     async def get_cafes_list(
         self,
-        user: User,
         show_all: bool,
+        user: User,
         session: AsyncSession,
     ) -> list[Cafe]:
         """Возвращает список кафе с учётом роли пользователя и флага show_all.
@@ -352,6 +352,7 @@ class CafeService:
 
         Выполняет soft delete кафе путём установки `is_active = False`.
         Кафе не удаляется физически из базы данных.
+        Доступно только администраторам.
 
         Args:
             cafe_id: Идентификатор кафе.
