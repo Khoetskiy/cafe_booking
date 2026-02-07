@@ -117,6 +117,14 @@ class TableService:
             Список столов кафе.
 
         """
+        logger.info(
+            'Запрос списка столов (cafe_id=%s, role=%s, show_all=%s)',
+            cafe_id,
+            user.role,
+            show_all,
+            extra={'user': f'{user.username} id={user.id}'},
+        )
+
         cafe = await get_cafe_or_404(cafe_id, session)
 
         if self._has_manage_permission(user, cafe):
@@ -133,9 +141,13 @@ class TableService:
         )
 
         logger.info(
-            'Получен список столов: cafe_id=%s, count=%s, show_all=%s',
-            cafe_id,
+            (
+                'Получен список столов: '
+                'cafe_id=%s, count=%s, role=%s, show_all=%s'
+            ),
+            cafe.id,
             len(tables),
+            user.role,
             effective_show_all,
             extra={'user': f'{user.username} id={user.id}'},
         )
@@ -381,7 +393,7 @@ class TableService:
 
         Доступ разрешён:
         - администраторам;
-        - менеджерам кафе, к которому относится стол.
+        - менеджерам данного кафе.
 
         Args:
             user: Текущий пользователь.
