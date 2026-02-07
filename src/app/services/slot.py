@@ -139,7 +139,10 @@ class SlotService:
         )
 
         logger.info(
-            'Получен список слотов: cafe_id=%s, count=%s, role=%s, show_all=%s',
+            (
+                'Получен список слотов: '
+                'cafe_id=%s, count=%s, role=%s, show_all=%s'
+            ),
             cafe.id,
             len(slots),
             user.role,
