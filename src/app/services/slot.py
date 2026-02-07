@@ -116,6 +116,14 @@ class SlotService:
             Список временных слотов кафе.
 
         """
+        logger.info(
+            'Запрос списка слотов (cafe_id=%s, role=%s, show_all=%s)',
+            cafe_id,
+            user.role,
+            show_all,
+            extra={'user': f'{user.username} id={user.id}'},
+        )
+
         cafe = await get_cafe_or_404(cafe_id, session)
 
         if self._has_manage_permission(user, cafe):
@@ -131,9 +139,10 @@ class SlotService:
         )
 
         logger.info(
-            'Получен список слотов: cafe_id=%s, count=%s, show_all=%s',
-            cafe_id,
+            'Получен список слотов: cafe_id=%s, count=%s, role=%s, show_all=%s',
+            cafe.id,
             len(slots),
+            user.role,
             effective_show_all,
             extra={'user': f'{user.username} id={user.id}'},
         )
@@ -172,7 +181,7 @@ class SlotService:
         Raises:
             HTTPException:
                 - 403: если у пользователя недостаточно прав
-                        для создания слота в указанном кафе;
+                            для создания слота в указанном кафе;
                 - 400: если временной диапазон слота некорректен;
                 - 409: если слот с таким временным интервалом уже существует
                                     или пересекается с другим активным слотом.
@@ -418,7 +427,7 @@ class SlotService:
 
         Доступ разрешён:
         - администраторам;
-        - менеджерам кафе, к которому относится слот.
+        - менеджерам данного кафе.
 
         Args:
             user: Текущий пользователь.
