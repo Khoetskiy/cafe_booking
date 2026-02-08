@@ -79,6 +79,16 @@ class UserUpdate(UserBase):
     )
 
 
+class UserUpdateMe(UserBase):
+    """Схема для обновления данных текущего пользователя."""
+
+    password: str | None = Field(
+        None,
+        min_length=MIN_LENGTH_USER_PASSWORD,
+        description='Новый пароль',
+    )
+
+
 class UserInfo(UserBase):
     """Полная информация о пользователе."""
 

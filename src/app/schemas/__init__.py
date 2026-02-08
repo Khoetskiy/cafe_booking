@@ -15,7 +15,7 @@ from .table import (
     TableShortInfo,
     TableUpdate,
 )
-from .user import UserCreate, UserInfo, UserShortInfo, UserUpdate
+from .user import UserCreate, UserInfo, UserShortInfo, UserUpdate, UserUpdateMe
 
 __all__ = [
     'AuthData',
@@ -43,4 +43,5 @@ __all__ = [
     'UserInfo',
     'UserShortInfo',
     'UserUpdate',
+    'UserUpdateMe',
 ]
