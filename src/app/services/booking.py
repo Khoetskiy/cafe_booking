@@ -23,6 +23,9 @@ from app.services.user import get_user_or_404
 logger = logging.getLogger(__name__)
 
 
+# REVIEW: Проверить все доступы по методам, по аналогии с другими сущностями.
+
+
 class BookingService:
     """Сервис бизнес-логики для управления бронированиями.
 
@@ -56,35 +59,37 @@ class BookingService:
 
         Args:
             booking_id: Идентификатор бронирования.
-            user: Текущий авторизованный пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Объект Booking.
 
         Raises:
-            HTTPException: Если бронирование не существует,
-                    или пользователь не имеет к нему доступа.
+            HTTPException(404): Если бронирование не существует
+                                            или нет прав доступа.
 
         """
         booking = await self._get_booking_or_404(booking_id, session)
 
-        logger.info(
-            'Запрошено бронирование: %s',
-            booking.__repr__(),
-            extra={'user': f'{user.username} id={user.id}'},
-        )
-
         if not self._can_view_booking(user, booking):
+            # TODO: Логирование отказа вынести в отдельный метод?
             logger.warning(
-                'Попытка доступа к бронированию без прав: %s',
-                booking.__repr__(),
+                'Отказ в доступе к бронированию id=%s, role=%s',
+                booking.id,
+                user.role,
                 extra={'user': f'{user.username} id={user.id}'},
             )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Бронирование не найдено',
             )
+
+        logger.info(
+            'Получено бронирование: %s',
+            booking.__repr__(),
+            extra={'user': f'{user.username} id={user.id}'},
+        )
 
         return booking
 
@@ -115,14 +120,14 @@ class BookingService:
                                         иначе только активные.
             cafe_id: Идентификатор кафе для фильтрации.
             user_id: Идентификатор пользователя для фильтрации.
-            current_user: Текущий авторизованный пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            current_user: Текущий пользователь (инициатор операции).
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Список объектов Booking, удовлетворяющих условиям фильтрации.
 
         Raises:
-            HTTPException: Если указанное кафе или пользователь не существуют.
+            HTTPException(404): Если кафе или пользователь не существуют.
 
         """
         filters: list[dict[str, Any]] = []
@@ -144,26 +149,33 @@ class BookingService:
                 )
 
             if user_id is not None:
-                user = await get_user_or_404(user_id=user_id, session=session)
+                target_user = await get_user_or_404(
+                    user_id=user_id,
+                    session=session,
+                )
                 filters.append(
                     {
                         'field': 'user_id',
                         'op': 'eq',
-                        'value': user.id,
+                        'value': target_user.id,
                     }
                 )
 
+        # BUG: Менеджер без переданного cafe_id в запросе?
         elif cafe and can_manage_cafe(current_user, cafe.id):
             effective_show_all = show_all
             filters.append({'field': 'cafe_id', 'op': 'eq', 'value': cafe.id})
 
             if user_id is not None:
-                user = await get_user_or_404(user_id=user_id, session=session)
+                target_user = await get_user_or_404(
+                    user_id=user_id,
+                    session=session,
+                )
                 filters.append(
                     {
                         'field': 'user_id',
                         'op': 'eq',
-                        'value': user.id,
+                        'value': target_user.id,
                     }
                 )
 
@@ -202,8 +214,15 @@ class BookingService:
         )
 
         logger.info(
-            'Получен список бронирований: count=%s',
+            (
+                'Получен список бронирований: '
+                'count=%s, cafe_id=%s, user_id=%s, show_all=%s, role=%s,'
+            ),
             len(bookings),
+            cafe_id,
+            user_id,
+            effective_show_all,
+            current_user.role,
             extra={'user': f'{current_user.username} id={current_user.id}'},
         )
 
@@ -228,7 +247,7 @@ class BookingService:
         Args:
             booking_in: Данные для создания бронирования.
             user: Текущий пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Созданный объект Booking.
@@ -330,8 +349,8 @@ class BookingService:
         Args:
             booking_id: Идентификатор бронирования.
             booking_in: Данные для обновления бронирования.
-            user: Текущий авторизованный пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Обновлённый объект Booking.
@@ -499,7 +518,7 @@ class BookingService:
             Объект Booking.
 
         Raises:
-            HTTPException: Если бронирование не найдено.
+            HTTPException(404): Если бронирование не найдено.
 
         """
         booking = await booking_crud.get_by_id(
@@ -647,7 +666,7 @@ class BookingService:
         Args:
             cafe_id: Идентификатор кафе, для которого выполняется бронирование.
             tables_slots: Список связок стол–слот, переданных пользователем.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Raises:
             400: Если хотя бы один слот не существует,
@@ -717,7 +736,7 @@ class BookingService:
                         пользователь пытается забронировать.
             exclude_booking_id: Идентификатор бронирования,
                         которое необходимо исключить из проверки.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Raises:
             409: Если найдено хотя бы одно конфликтующее бронирование.
