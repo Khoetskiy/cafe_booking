@@ -43,6 +43,8 @@ class Slot(Base):
         nullable=True,
     )
 
+    # FIXME: Убрать во всех моделях и грузить явно через lazy='selectin' ?
+    # Либо убрать из base/crud, но сделать одинаково везде, как в Table
     cafe: Mapped['Cafe'] = relationship(
         'Cafe',
         back_populates='slots',
