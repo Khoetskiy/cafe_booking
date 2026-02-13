@@ -39,6 +39,7 @@ router = APIRouter()
         **UNAUTHORIZED_RESPONSE,
         **NOT_FOUND_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
+        # FIXME: Надо ли? и во всех сущностях проверить
     },
 )
 async def get_time_slots_list(
@@ -81,6 +82,12 @@ async def get_time_slots_list(
     response_model=TimeSlotInfo,
     status_code=status.HTTP_201_CREATED,
     summary='Новый временной слот в кафе',
+    description=(
+        'Создает новый временной слот в кафе. '
+        'Доступно администраторам для любого кафе, '
+        'а также менеджерам — только для тех кафе, '
+        'которыми они управляют.'
+    ),
     responses={
         **CREATED_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -89,12 +96,6 @@ async def get_time_slots_list(
         **CONFLICT_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
     },
-    description=(
-        'Создает новый временной слот в кафе. '
-        'Доступно администраторам для любого кафе, '
-        'а также менеджерам — только для тех кафе, '
-        'которыми они управляют.'
-    ),
 )
 async def create_time_slot(
     cafe_id: int = Path(..., description='ID кафе'),
@@ -170,8 +171,7 @@ async def get_time_slot_by_id(
 ) -> TimeSlotInfo:
     """Возвращает информацию о временном слоте по его идентификатору.
 
-    Доступ к слоту определяется ролью пользователя и состоянием кафе.
-
+    Доступ к слоту определяется ролью пользователя и состоянием кафе:
     - Администратор имеет доступ ко всем слотам.
     - Менеджер имеет полный доступ к слотам своего кафе.
     - Менеджер вне своего кафе и обычный пользователь
