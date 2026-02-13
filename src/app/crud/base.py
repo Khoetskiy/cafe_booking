@@ -3,6 +3,7 @@ from typing import Any, Generic, TypeVar
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Load
 
 from app.core.db import Base
 
@@ -50,7 +51,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         filters: list[dict[str, Any]] | None = None,
         *,
         session: AsyncSession,
-        options: list[Any] | None = None,
+        # TODO: Сделать рефакторинг для options и разобраться
+        # зачем он вообще нужен? как работает.
+        options: list[Load] | None = None,
     ) -> list[ModelType]:
         """Возвращает список объектов модели с поддержкой AND / OR фильтрации.
 
@@ -112,8 +115,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             stmt = stmt.where(and_(*expressions))
 
         if options:
-            for option in options:
-                stmt = stmt.options(option)
+            stmt = stmt.options(*options)
 
         result = await session.execute(stmt)
         return result.scalars().all()
