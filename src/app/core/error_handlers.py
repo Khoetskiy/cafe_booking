@@ -9,7 +9,7 @@ from app.schemas.error import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
-
+# TODO: Удалить кастомные ext для пользователя и глобальные хендлеры для них
 async def user_not_found_handler(
     request: Request,
     exc: UserNotFoundError,
