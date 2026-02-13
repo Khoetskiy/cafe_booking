@@ -60,9 +60,10 @@ class TableService:
 
         Raises:
             HTTPException:
-                - 404, если стол или кафе не найдены;
                 - 403, если у пользователя недостаточно прав
-                для доступа к столу.
+                                            для доступа к столу;
+                - 404, если стол или кафе не найдены.
+
 
         """
         cafe = await get_cafe_or_404(cafe_id, session)
@@ -111,7 +112,7 @@ class TableService:
             cafe_id: Идентификатор кафе.
             show_all: Флаг показа всех столов (активных и неактивных).
             user: Текущий аутентифицированный пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Список столов кафе.
@@ -176,7 +177,7 @@ class TableService:
             cafe_id: Идентификатор кафе, в котором создается стол.
             table_in: Данные для создания стола.
             user: Текущий аутентифицированный пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Созданный стол.
@@ -235,7 +236,7 @@ class TableService:
             table_id: Идентификатор стола.
             table_in: Данные для обновления стола.
             user: Текущий аутентифицированный пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Обновлённый объект Table.
@@ -400,7 +401,7 @@ class TableService:
             cafe: Кафе, для которого проверяются права.
 
         Raises:
-            HTTPException: Если у пользователя недостаточно прав.
+            HTTPException(403): Если у пользователя недостаточно прав.
         """
         if not self._has_manage_permission(user, cafe):
             raise HTTPException(
