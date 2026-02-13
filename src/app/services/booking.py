@@ -23,7 +23,9 @@ from app.services.user import get_user_or_404
 logger = logging.getLogger(__name__)
 
 
-# REVIEW: Проверить все доступы по методам, по аналогии с другими сущностями.
+# TODO: Рефакторинг сущности Букинг: Service, Endpoint, CRUD, Model, Schemas
+
+# TODO: Проверить все доступы по методам, по аналогии с другими сущностями.
 
 
 class BookingService:
