@@ -63,7 +63,7 @@ async def get_cafes_list(
         Список объектов CafeInfo.
 
     """
-    return await cafe_service.get_cafes_list(user, show_all, session)
+    return await cafe_service.get_cafes_list(show_all, user, session)
 
 
 @router.post(
