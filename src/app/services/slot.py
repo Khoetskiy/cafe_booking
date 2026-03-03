@@ -59,11 +59,9 @@ class SlotService:
 
         Raises:
             HTTPException:
-                - 403: если у пользователя недостаточно прав
-                                            для доступа к слоту;
-                - 404: если слот или кафе не найдены.
-
-
+                - 403: Если у пользователя недостаточно прав
+                                            для доступа к слоту.
+                - 404: Если слот или кафе не найдены.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
         slot = await self._get_time_slot_or_404(
@@ -115,7 +113,6 @@ class SlotService:
 
         Returns:
             Список временных слотов кафе.
-
         """
         logger.info(
             'Запрос списка слотов (cafe_id=%s, role=%s, show_all=%s)',
@@ -184,12 +181,11 @@ class SlotService:
 
         Raises:
             HTTPException:
-                - 403: если у пользователя недостаточно прав
-                            для создания слота в указанном кафе;
-                - 400: если временной диапазон слота некорректен;
-                - 409: если слот с таким временным интервалом уже существует
+                - 400: Если временной диапазон слота некорректен.
+                - 403: Если у пользователя недостаточно прав
+                            для создания слота в указанном кафе.
+                - 409: Если слот с таким временным интервалом уже существует
                                     или пересекается с другим активным слотом.
-
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -262,11 +258,10 @@ class SlotService:
 
         Raises:
             HTTPException:
-                - 404, если кафе или слот не найдены;
-                - 403, если у пользователя нет прав;
-                - 400, если временной диапазон некорректен;
-                - 409, если интервал конфликтует с существующими слотами.
-
+                - 400: Если временной диапазон некорректен.
+                - 403: Если у пользователя нет прав.
+                - 404: Если кафе или слот не найдены.
+                - 409: Если интервал конфликтует с существующими слотами.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -340,10 +335,9 @@ class SlotService:
 
         Raises:
             HTTPException:
-                - 404, если кафе или слот не найдены;
-                - 403, если у пользователя нет прав;
-                - 409, если слот уже деактивирован.
-
+                - 403: Если у пользователя нет прав.
+                - 404: Если кафе или слот не найдены.
+                - 409: Если слот уже деактивирован.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -388,8 +382,8 @@ class SlotService:
             Объект Slot.
 
         Raises:
-            HTTPException: Если слот не найден.
-
+            HTTPException:
+                - 404: Если слот не найден.
         """
         slot = await slot_crud.get_by_id_and_cafe(
             slot_id=slot_id,
@@ -416,8 +410,8 @@ class SlotService:
             cafe: Объект Cafe.
 
         Raises:
-            HTTPException: Если слот или кафе неактивны.
-
+            HTTPException:
+                - 403: Если слот или кафе неактивны.
         """
         ensure_cafe_is_active(cafe)
         if not slot.is_active:
@@ -438,7 +432,8 @@ class SlotService:
             cafe: Кафе, для которого проверяются права.
 
         Raises:
-            HTTPException: Если у пользователя недостаточно прав.
+            HTTPException:
+                - 403: Если у пользователя недостаточно прав.
         """
         if not self._has_manage_permission(user, cafe):
             raise HTTPException(
@@ -474,8 +469,8 @@ class SlotService:
             end_time: Время окончания слота.
 
         Raises:
-            HTTPException: Если временной диапазон некорректен.
-
+            HTTPException:
+                - 400: Если временной диапазон некорректен.
         """
         if start_time >= end_time:
             raise HTTPException(
@@ -504,8 +499,8 @@ class SlotService:
             session: Асинхронная сессия БД.
 
         Raises:
-            HTTPException: Если слот с таким интервалом уже существует.
-
+            HTTPException:
+                - 409: Если слот с таким интервалом уже существует.
         """
         slot = await slot_crud.get_slot_by_time_range(
             cafe_id,
@@ -542,8 +537,8 @@ class SlotService:
             session: Асинхронная сессия БД.
 
         Raises:
-            HTTPException: Если найден пересекающийся слот.
-
+            HTTPException:
+                - 409: Если найден пересекающийся слот.
         """
         slots = await slot_crud.get_overlapping_slots(
             cafe_id=cafe_id,
@@ -572,7 +567,6 @@ class SlotService:
 
         Returns:
             Словарь данных для передачи в CRUD.
-
         """
         data = slot_in.model_dump(exclude_unset=True)
         data['cafe_id'] = cafe_id

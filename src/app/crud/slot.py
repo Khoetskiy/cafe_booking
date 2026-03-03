@@ -22,6 +22,7 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
 
     Используется сервисным слоем для реализации бизнес-логики.
     """
+
     async def get_cafe_slots(
         self,
         cafe_id: int,
@@ -42,7 +43,6 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
 
         Returns:
             Список временных слотов.
-
         """
         filters = [{'field': 'cafe_id', 'op': 'eq', 'value': cafe_id}]
 
@@ -66,7 +66,6 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
 
         Returns:
             Слот или None, если не найден.
-
         """
         stmt = select(Slot).where(
             and_(
@@ -99,7 +98,6 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
 
         Returns:
             Слот, если найден, иначе None.
-
         """
         stmt = select(Slot).where(
             and_(
@@ -140,7 +138,6 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
 
         Returns:
             Список активных слотов, пересекающихся с заданным интервалом.
-
         """
         stmt = select(Slot).where(
             and_(

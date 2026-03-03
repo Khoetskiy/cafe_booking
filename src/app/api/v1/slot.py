@@ -127,9 +127,9 @@ async def create_time_slot(
 
     Raises:
         HTTPException:
-            - 403, если у пользователя недостаточно прав;
-            - 404, если кафе не найдено;
-            - 422, если данные не прошли валидацию.
+            - 403: Если у пользователя недостаточно прав.
+            - 404: Если кафе не найдено.
+            - 422: Если данные не прошли валидацию.
     """
     return await slot_service.create_slot(
         cafe_id=cafe_id,
@@ -160,7 +160,7 @@ async def create_time_slot(
         **UNAUTHORIZED_RESPONSE,
         **FORBIDDEN_RESPONSE,
         **NOT_FOUND_RESPONSE,
-        **VALIDATION_ERROR_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,  # FIXME: Надо ли? и во всех сущностях проверить
     },
 )
 async def get_time_slot_by_id(
@@ -188,10 +188,9 @@ async def get_time_slot_by_id(
 
     Raises:
         HTTPException:
-            - 401, если пользователь не авторизован.
-            - 403, если у пользователя нет прав доступа.
-            - 404, если слот или кафе не найдены.
-
+            - 401: Если пользователь не авторизован.
+            - 403: Если у пользователя нет прав доступа.
+            - 404: Если слот или кафе не найдены.
     """
     return await slot_service.get_slot_by_id(
         cafe_id=cafe_id,
@@ -255,11 +254,10 @@ async def update_time_slot(
 
     Raises:
         HTTPException:
-            - 403, если у пользователя недостаточно прав;
-            - 404, если кафе или слот не найдены;
-            - 400, если временной диапазон некорректен;
-            - 409, если интервал конфликтует с существующими слотами.
-
+            - 400: Если временной диапазон некорректен.
+            - 403: Если у пользователя недостаточно прав.
+            - 404: Если кафе или слот не найдены.
+            - 409: Если интервал конфликтует с существующими слотами.
     """
     return await slot_service.update_slot(
         cafe_id=cafe_id,
@@ -306,8 +304,10 @@ async def deactivate_time_slot(
         Объект с обновленной информацией о слоте.
 
     Raises:
-        HTTPException: Если слот не найден или уже деактивирован.
-
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если кафе или слот не найдены.
+            - 409: Если слот уже деактивирован.
     """
     return await slot_service.deactivate_slot(
         cafe_id=cafe_id,
