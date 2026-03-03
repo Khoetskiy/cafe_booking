@@ -11,11 +11,8 @@ from app.core.config import settings
 from app.core.error_handlers import (
     http_exception_handler,
     unhandled_exception_handler,
-    user_already_exists_handler,
-    user_not_found_handler,
     validation_error_handler,
 )
-from app.core.exceptions import UserAlreadyExistsError, UserNotFoundError
 from app.core.logging import setup_logging
 from app.core.openapi import OPENAPI_TAGS
 from app.core.redis import redis_manager
@@ -59,6 +56,4 @@ app.add_middleware(
 
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
-app.add_exception_handler(UserNotFoundError, user_not_found_handler)
-app.add_exception_handler(UserAlreadyExistsError, user_already_exists_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
