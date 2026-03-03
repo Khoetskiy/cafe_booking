@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,8 +15,6 @@ from app.models import User
 from app.schemas import TableCreate, TableInfo, TableUpdate
 from app.services.auth import current_active_user, current_admin_or_manager
 from app.services.table import table_service
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -137,9 +133,9 @@ async def create_table(
 
     Raises:
         HTTPException:
-            - 403, если у пользователя недостаточно прав;
-            - 404, если кафе не найдено;
-            - 422, если данные не прошли валидацию.
+            - 403: Если у пользователя недостаточно прав.
+            - 404: Если кафе не найдено.
+            - 422: Если данные не прошли валидацию.
     """
     return await table_service.create_table(
         cafe_id=cafe_id,
@@ -199,10 +195,9 @@ async def get_table_by_id(
 
     Raises:
         HTTPException:
-            - 401, если пользователь не авторизован.
-            - 403, если у пользователя нет прав доступа.
-            - 404, если стол или кафе не найдены.
-
+            - 401: Если пользователь не авторизован.
+            - 403: Если у пользователя нет прав доступа.
+            - 404: Если стол или кафе не найдены.
     """
     return await table_service.get_table_by_id(
         cafe_id=cafe_id,
@@ -264,9 +259,9 @@ async def update_table(
 
     Raises:
         HTTPException:
-            - 403, если у пользователя недостаточно прав;
-            - 404, если кафе или стол не найдены;
-            - 422, если количество мест некорректно.
+            - 403: Если у пользователя недостаточно прав.
+            - 404: Если кафе или стол не найдены.
+            - 422: Если количество мест некорректно.
     """
     return await table_service.update_table(
         cafe_id=cafe_id,
@@ -313,8 +308,10 @@ async def deactivate_table(
         Объект с обновленной информацией о столе.
 
     Raises:
-        HTTPException: Если стол не найден или уже деактивирован.
-
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если кафе или стол не найдены.
+            - 409: Если стол уже деактивирован.
     """
     return await table_service.deactivate_table(
         cafe_id=cafe_id,

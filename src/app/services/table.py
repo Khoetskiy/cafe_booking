@@ -60,11 +60,9 @@ class TableService:
 
         Raises:
             HTTPException:
-                - 403, если у пользователя недостаточно прав
-                                            для доступа к столу;
-                - 404, если стол или кафе не найдены.
-
-
+                - 403: Если у пользователя недостаточно прав
+                                            для доступа к столу.
+                - 404: Если стол или кафе не найдены.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
         table = await self._get_table_or_404(
@@ -116,7 +114,6 @@ class TableService:
 
         Returns:
             Список столов кафе.
-
         """
         logger.info(
             'Запрос списка столов (cafe_id=%s, role=%s, show_all=%s)',
@@ -184,9 +181,9 @@ class TableService:
 
         Raises:
             HTTPException:
-                - 403: если у пользователя недостаточно прав
-                        для создания стола в указанном кафе;
-                - 400: если количество мест некорректно;
+                - 400: Если количество мест некорректно.
+                - 403: Если у пользователя недостаточно прав
+                        для создания стола в указанном кафе.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -243,9 +240,9 @@ class TableService:
 
         Raises:
             HTTPException:
-                - 404, если кафе или стол не найдены;
-                - 403, если у пользователя недостаточно прав;
-                - 422, если количество мест некорректно.
+                - 403: Если у пользователя недостаточно прав.
+                - 404: Если кафе или стол не найдены.
+                - 422: Если количество мест некорректно.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -302,10 +299,9 @@ class TableService:
 
         Raises:
             HTTPException:
-                - 404, если кафе или стол не найдены;
-                - 403, если у пользователя нет прав;
-                - 409, если стол уже деактивирован.
-
+                - 403: Если у пользователя нет прав.
+                - 404: Если кафе или стол не найдены.
+                - 409: Если стол уже деактивирован.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -351,8 +347,8 @@ class TableService:
             Объект Table.
 
         Raises:
-            HTTPException: Если стол не найден.
-
+            HTTPException:
+                - 404: Если стол не найден.
         """
         table = await table_crud.get_by_id_and_cafe(
             table_id=table_id,
@@ -379,8 +375,8 @@ class TableService:
             cafe: Объект Cafe.
 
         Raises:
-            HTTPException: Если стол или кафе неактивны.
-
+            HTTPException:
+                - 403: Если стол или кафе неактивны.
         """
         ensure_cafe_is_active(cafe)
         if not table.is_active:
@@ -401,7 +397,8 @@ class TableService:
             cafe: Кафе, для которого проверяются права.
 
         Raises:
-            HTTPException(403): Если у пользователя недостаточно прав.
+            HTTPException:
+                - 403: Если у пользователя недостаточно прав.
         """
         if not self._has_manage_permission(user, cafe):
             raise HTTPException(
@@ -434,7 +431,8 @@ class TableService:
             seats_count: Количество посадочных мест.
 
         Raises:
-            HTTPException: Если количество мест выходит за допустимый диапазон.
+            HTTPException:
+                - 400: Если количество мест выходит за допустимый диапазон.
         """
         if not (MIN_SEATS_COUNT <= seats_count <= MAX_SEATS_COUNT):
             raise HTTPException(
@@ -458,7 +456,6 @@ class TableService:
 
         Returns:
             Словарь данных для передачи в CRUD.
-
         """
         data = table_in.model_dump(exclude_unset=True)
         data['cafe_id'] = cafe_id

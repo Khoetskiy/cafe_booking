@@ -38,7 +38,6 @@ class CRUDTable(CRUDBase[Table, TableCreate, TableUpdate]):
 
         Returns:
             Список столов.
-
         """
         filters = [{'field': 'cafe_id', 'op': 'eq', 'value': cafe_id}]
 
@@ -69,7 +68,6 @@ class CRUDTable(CRUDBase[Table, TableCreate, TableUpdate]):
 
         Returns:
             Объект Table или None, если стол не найден.
-
         """
         stmt = select(Table).where(
             and_(
