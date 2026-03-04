@@ -49,7 +49,7 @@ class BookingService:
     ) -> Booking:
         """Возвращает бронирование по ID с учётом прав доступа пользователя.
 
-        Метод выполняет следующие шаги:
+        Выполняет следующие шаги:
         - Получает бронирование по идентификатору или выбрасывает 404;
         - Проверяет, имеет ли пользователь право просматривать бронирование;
         - Возвращает бронирование при наличии доступа.
@@ -68,14 +68,12 @@ class BookingService:
             Объект Booking.
 
         Raises:
-            HTTPException(404): Если бронирование не существует
-                                            или нет прав доступа.
-
+            HTTPException:
+                - 404: Если бронирование не найдено или нет прав доступа.
         """
         booking = await self._get_booking_or_404(booking_id, session)
 
         if not self._can_view_booking(user, booking):
-            # TODO: Логирование отказа вынести в отдельный метод?
             logger.warning(
                 'Отказ в доступе к бронированию id=%s, role=%s',
                 booking.id,
@@ -88,14 +86,14 @@ class BookingService:
             )
 
         logger.info(
-            'Получено бронирование: %s',
+            'Получено бронирование %s',
             booking.__repr__(),
             extra={'user': f'{user.username} id={user.id}'},
         )
 
         return booking
 
-    async def get_bookings_list(
+    async def get_management_bookings_list(
         self,
         show_all: bool,
         cafe_id: int | None,
@@ -103,18 +101,30 @@ class BookingService:
         current_user: User,
         session: AsyncSession,
     ) -> list[Booking]:
-        """Возвращает список бронирований с учётом прав доступа пользователя.
+        """Возвращает список бронирований в управленческом контексте.
 
-        Формирует список бронирований на основе роли текущего пользователя
-        и переданных параметров фильтрации.
+        Используется для административного и менеджерского просмотра
+        бронирований с возможностью поддержки фильтрации.
+
+        Правила доступа:
+        - Администратор:
+            - Может просматривать бронирования всех кафе.
+            - Может фильтровать по `cafe_id`, `user_id`.
+            - Может управлять отображением неактивных бронирований `show_all`.
+
+        - Менеджер:
+            - Может просматривать бронирования только своего кафе.
+            - Если передан `cafe_id`, он должен совпадать с кафе менеджера.
+            - Может фильтровать по `user_id`.
+            - Может управлять отображением неактивных бронирований `show_all`.
+
 
         Правила доступа:
         - Администратор может просматривать все бронирования, с возможностью
-                                            фильтрации по кафе и пользователю.
+                        фильтрации по кафе, пользователю и статусу активности.
         - Менеджер может просматривать бронирования только тех кафе,
-                                                которыми он управляет.
-        - Обычный пользователь может просматривать только свои бронирования,
-                                        независимо от переданного `user_id`.
+                которыми он управляет с возможностью фильтрации по пользователю
+                                                        и статусу активности.
         - Неактивные бронирования возвращаются только при `show_all=True`.
 
         Args:
@@ -129,69 +139,28 @@ class BookingService:
             Список объектов Booking, удовлетворяющих условиям фильтрации.
 
         Raises:
-            HTTPException(404): Если кафе или пользователь не существуют.
-
+            HTTPException:
+                - 403: Если недостаточно прав.
+                - 404: Если кафе не принадлежит менеджеру.
         """
+        if current_user.role not in {UserRole.ADMIN, UserRole.MANAGER}:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Недостаточно прав',
+            )
+
         filters: list[dict[str, Any]] = []
 
-        cafe = None
-        if cafe_id is not None:
-            cafe = await get_cafe_or_404(cafe_id=cafe_id, session=session)
-
-        if current_user.role == UserRole.ADMIN:
-            effective_show_all = show_all
-
-            if cafe_id is not None:
-                filters.append(
-                    {
-                        'field': 'cafe_id',
-                        'op': 'eq',
-                        'value': cafe_id,
-                    }
-                )
-
-            if user_id is not None:
-                target_user = await get_user_or_404(
-                    user_id=user_id,
-                    session=session,
-                )
-                filters.append(
-                    {
-                        'field': 'user_id',
-                        'op': 'eq',
-                        'value': target_user.id,
-                    }
-                )
-
-        # BUG: Менеджер без переданного cafe_id в запросе?
-        elif cafe and can_manage_cafe(current_user, cafe.id):
-            effective_show_all = show_all
-            filters.append({'field': 'cafe_id', 'op': 'eq', 'value': cafe.id})
-
-            if user_id is not None:
-                target_user = await get_user_or_404(
-                    user_id=user_id,
-                    session=session,
-                )
-                filters.append(
-                    {
-                        'field': 'user_id',
-                        'op': 'eq',
-                        'value': target_user.id,
-                    }
-                )
-
-        else:
-            effective_show_all = False
-
+        if user_id is not None:
             filters.append(
                 {
                     'field': 'user_id',
                     'op': 'eq',
-                    'value': current_user.id,
+                    'value': user_id,
                 }
             )
 
+        if current_user.role == UserRole.ADMIN:
             if cafe_id is not None:
                 filters.append(
                     {
@@ -201,7 +170,22 @@ class BookingService:
                     }
                 )
 
-        if not effective_show_all:
+        elif current_user.role == UserRole.MANAGER:
+            if cafe_id is not None and cafe_id != current_user.cafe_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail='Кафе не найдено',
+                )
+
+            filters.append(
+                {
+                    'field': 'cafe_id',
+                    'op': 'eq',
+                    'value': current_user.cafe_id,
+                }
+            )
+
+        if not show_all:
             filters.append(
                 {
                     'field': 'is_active',
@@ -223,7 +207,57 @@ class BookingService:
             len(bookings),
             cafe_id,
             user_id,
-            effective_show_all,
+            show_all,
+            current_user.role,
+            extra={'user': f'{current_user.username} id={current_user.id}'},
+        )
+
+        return bookings
+
+    async def get_my_bookings_list(
+        self,
+        cafe_id: int | None,
+        current_user: User,
+        session: AsyncSession,
+    ) -> list[Booking]:
+        """Возвращает список активных бронирований текущего пользователя.
+
+        Используется в пользовательском контексте (владение).
+
+        Особенности:
+        - Всегда фильтрует по `user_id` текущего пользователя.
+        - Возвращает только активные бронирования (`is_active=True`).
+        - Поддерживает дополнительную фильтрацию по `cafe_id`.
+        - Не зависит от роли пользователя.
+
+        Args:
+            cafe_id: Идентификатор кафе для фильтрации.
+            current_user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Список объектов Booking, удовлетворяющих условиям фильтрации.
+        """
+        filters = [
+            {'field': 'user_id', 'op': 'eq', 'value': current_user.id},
+            {'field': 'is_active', 'op': 'eq', 'value': True},
+        ]
+
+        if cafe_id is not None:
+            filters.append({'field': 'cafe_id', 'op': 'eq', 'value': cafe_id})
+
+        bookings = await booking_crud.get_multi(
+            filters=filters,
+            session=session,
+        )
+
+        logger.info(
+            (
+                'Получен список личных бронирований: '
+                'count=%s, cafe_id=%s, role=%s'
+            ),
+            len(bookings),
+            cafe_id,
             current_user.role,
             extra={'user': f'{current_user.username} id={current_user.id}'},
         )

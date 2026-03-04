@@ -14,34 +14,40 @@ from app.core.responses import (
 )
 from app.models import User
 from app.schemas import BookingCreate, BookingInfo, BookingUpdate
-from app.services.auth import current_active_user
+from app.services.auth import current_active_user, current_admin_or_manager
 from app.services.booking import booking_service
 
 router = APIRouter()
 
+
 # TODO: проверить все ручки по аналогии с другими ручками
+
 
 @router.get(
     '/',
     response_model=list[BookingInfo],
     summary='Получение списка бронирований',
     description=(
-        'Возвращает список бронирований с учетом роли пользователя.\n\n'
-        '- Администратор может просматривать все бронирования с возможностью '
-        'фильтрации по кафе, пользователю и статусу активности.\n'
-        '- Менеджер может просматривать бронирования только того кафе, '
-        'которым он управляет.\n'
-        '- Обычный пользователь может просматривать только собственные '
-        'бронирования (параметр `user_id` игнорируется).'
+        'Возвращает список бронирований в управленческом режиме.\n\n'
+        'Доступен администраторам и менеджерам.\n\n'
+        'Администратор:\n'
+        '- Просматривает бронирования всех кафе.\n'
+        '- Может фильтровать по `cafe_id` и `user_id`.\n'
+        '- Может включать все бронирования через параметр `show_all`.\n\n'
+        'Менеджер:\n'
+        '- Просматривает бронирования только своего кафе.\n'
+        '- Может фильтровать по `user_id`.\n'
+        '- Может включать все бронирования через параметр `show_all`.\n'
     ),
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
         **NOT_FOUND_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
     },
 )
-async def get_bookings_list(
+async def get_management_bookings_list(
     show_all: bool = Query(
         False,
         description=(
@@ -53,44 +59,99 @@ async def get_bookings_list(
         None,
         description=(
             'ID кафе, в котором показывать бронирования. '
-            'Если не задано - показывает все бронирования во всех кафе'
+            'Если не задано — показывает все бронирования во всех кафе '
+            'для администатора, для менеджера только в его кафе.'
         ),
     ),
     user_id: int | None = Query(
         None,
         description=(
             'ID пользователя, бронирования которого показывать. '
-            'Если не задано - показывает бронирования всех пользователей'
+            'Если не задано — показывает бронирования всех пользователей.'
         ),
     ),
-    current_user: User = Depends(current_active_user),
+    current_user: User = Depends(current_admin_or_manager),
     session: AsyncSession = Depends(get_async_session),
 ) -> list[BookingInfo]:
-    """Возвращает список бронирований с учетом прав доступа пользователя.
+    """Возвращает список бронирований с учетом прав доступа и фильтрации.
 
-    Правила доступа:
-    - администратор имеет полный доступ;
-    - менеджер — доступ только к своим кафе;
-    - пользователь — доступ только к собственным бронированиям.
+    Доступен администраторам и менеджерам.
+
+    Администратор:
+        - Просматривает бронирования всех кафе.
+        - Может фильтровать по `cafe_id`, `user_id` и `show_all`.
+
+    Менеджер:
+        - Просматривает бронирования только своего кафе.
+        - Может фильтровать по `user_id` и `show_all`.
+        - Не может получить доступ к чужим кафе.
 
     Args:
         show_all: Показывать ли неактивные бронирования.
         cafe_id: Идентификатор кафе для фильтрации.
         user_id: Идентификатор пользователя для фильтрации.
         current_user: Текущий авторизованный пользователь.
-        session: Асинхронная SQLAlchemy-сессия.
+        session: Асинхронная сессия SQLAlchemy.
 
     Returns:
         Список бронирований.
 
     Raises:
-        HTTPException: Если указанное кафе или пользователь не существуют.
-
+        HTTPException:
+            - 403: Если недостаточно прав.
+            - 404: Если указанное кафе не принадлежит менеджеру.
     """
-    return await booking_service.get_bookings_list(
+    return await booking_service.get_management_bookings_list(
         show_all=show_all,
         cafe_id=cafe_id,
         user_id=user_id,
+        current_user=current_user,
+        session=session,
+    )
+
+
+@router.get(
+    '/me',
+    response_model=list[BookingInfo],
+    summary='Получение списка бронирований текущего пользователя',
+    description=(
+        'Возвращает список активных бронирований текущего пользователя.\n\n'
+        '- Всегда возвращаются только активные бронирования.\n'
+        '- Фильтрация по `cafe_id` является дополнительной.\n'
+        '- Роль пользователя не влияет на результат.'
+    ),
+    responses={
+        **OK_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def get_my_bookings_list(
+    cafe_id: int | None = Query(
+        None,
+        description=(
+            'ID кафе, в котором показывать бронирования. '
+            'Если не указано — показывает все бронирования во всех кафе.'
+        ),
+    ),
+    current_user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> list[BookingInfo]:
+    """Возвращает список активных бронирований текущего пользователя.
+
+    Формирует список бронирований текущего пользователя
+    с возможностью фильтрации по кафе.
+
+    Args:
+        cafe_id: Идентификатор кафе для фильтрации.
+        current_user: Текущий авторизованный пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Список активных бронирований пользователя.
+    """
+    return await booking_service.get_my_bookings_list(
+        cafe_id=cafe_id,
         current_user=current_user,
         session=session,
     )
