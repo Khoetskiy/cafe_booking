@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Any
 
@@ -18,14 +19,9 @@ from app.services.cafe import (
     ensure_cafe_is_active,
     get_cafe_or_404,
 )
-from app.services.user import get_user_or_404
 
 logger = logging.getLogger(__name__)
-
-
-# TODO: Рефакторинг сущности Букинг: Service, Endpoint, CRUD, Model, Schemas
-
-# TODO: Проверить все доступы по методам, по аналогии с другими сущностями.
+type TableSlotLike = TableSlot | TableSlotBooking
 
 
 class BookingService:
@@ -290,7 +286,6 @@ class BookingService:
 
         Raises:
             HTTPException: Если данные некорректны или ресурсы заняты.
-
         """
         cafe = await get_cafe_or_404(
             cafe_id=booking_in.cafe_id,
@@ -393,10 +388,9 @@ class BookingService:
 
         Raises:
             HTTPException:
-                - 400: некорректные данные (дата, столы, слоты);
-                - 404: бронирование не найдено или доступ запрещён;
-                - 409: найдено конфликтующее бронирование.
-
+                - 400: Некорректные данные (дата, столы, слоты).
+                - 404: Бронирование не найдено или доступ запрещён.
+                - 409: Найдено конфликтующее бронирование.
         """
         booking = await self._get_booking_or_404(booking_id, session)
 
@@ -414,7 +408,11 @@ class BookingService:
 
         cafe_id = booking_in.cafe_id or booking.cafe_id
         booking_date = booking_in.booking_date or booking.booking_date
-        tables_slots = booking_in.tables_slots or booking.tables_slots
+        tables_slots = (
+            booking_in.tables_slots
+            if booking_in.tables_slots is not None
+            else booking.tables_slots
+        )
 
         if booking_in.cafe_id is not None:
             cafe = await get_cafe_or_404(booking_in.cafe_id, session)
@@ -501,10 +499,9 @@ class BookingService:
 
         Raises:
             HTTPException:
-                - 404: если бронирование не найдено;
-                - 403: если у пользователя нет прав;
-                - 409: если бронирование уже деактивировано.
-
+                - 404: Если бронирование не найдено.
+                - 403: Если у пользователя нет прав.
+                - 409: Если бронирование уже деактивировано.
         """
         booking = await self._get_booking_or_404(booking_id, session)
         if not self._can_update_booking(user, booking):
@@ -555,7 +552,6 @@ class BookingService:
 
         Raises:
             HTTPException(404): Если бронирование не найдено.
-
         """
         booking = await booking_crud.get_by_id(
             obj_id=booking_id,
@@ -585,7 +581,6 @@ class BookingService:
 
         Returns:
             True — если доступ разрешён, False — если доступ запрещён.
-
         """
         if user.role == UserRole.ADMIN:
             return True
@@ -611,7 +606,6 @@ class BookingService:
 
         Returns:
             True — если доступ разрешён, False — если доступ запрещён.
-
         """
         self._ensure_booking_can_be_updated(booking)
 
@@ -631,7 +625,7 @@ class BookingService:
         - с датой не в прошлом;
         - со статусом PENDING.
         """
-        if booking.booking_date < datetime.today().date():
+        if booking.booking_date < date.today():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Прошедшее бронирование нельзя изменять',
@@ -651,9 +645,8 @@ class BookingService:
 
         Raises:
             HTTPException: Если дата бронирования меньше текущей даты.
-
         """
-        if booking_date < datetime.today().date():
+        if booking_date < date.today():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Время бронирования не может быть в прошлом',
@@ -661,7 +654,7 @@ class BookingService:
 
     def _validate_no_duplicate_table_slots(
         self,
-        tables_slots: list[TableSlot],
+        tables_slots: Sequence[TableSlotLike],
     ) -> None:
         """Проверяет отсутствие дублирующихся связок стол–слот.
 
@@ -672,8 +665,7 @@ class BookingService:
             tables_slots: Список связок стол–слот из запроса.
 
         Raises:
-            400: Если одна и та же пара передана более одного раза.
-
+            HTTPException: Если одна и та же пара передана более одного раза.
         """
         pairs = [
             (table_slot.table_id, table_slot.slot_id)
@@ -688,7 +680,7 @@ class BookingService:
     async def _validate_tables_slots(
         self,
         cafe_id: int,
-        tables_slots: list[TableSlot],
+        tables_slots: Sequence[TableSlotLike],
         session: AsyncSession,
     ) -> None:
         """Проверяет существование и принадлежность столов и слотов кафе.
@@ -705,11 +697,10 @@ class BookingService:
             session: Асинхронная сессия SQLAlchemy.
 
         Raises:
-            400: Если хотя бы один слот не существует,
-                    неактивен или не принадлежит кафе;
-            400: Если хотя бы один стол не существует,
-                    неактивен или не принадлежит кафе.
-
+            HTTPException: Если хотя бы один слот не существует,
+                                неактивен или не принадлежит кафе.
+            HTTPException: Если хотя бы один стол не существует,
+                                неактивен или не принадлежит кафе.
         """
         table_ids, slot_ids = self._extract_table_and_slot_ids(tables_slots)
 
@@ -753,7 +744,7 @@ class BookingService:
         self,
         cafe_id: int,
         booking_date: date,
-        tables_slots: list[TableSlot],
+        tables_slots: Sequence[TableSlotLike],
         *,
         exclude_booking_id: int | None = None,
         session: AsyncSession,
@@ -776,7 +767,6 @@ class BookingService:
 
         Raises:
             409: Если найдено хотя бы одно конфликтующее бронирование.
-
         """
         table_ids, slot_ids = self._extract_table_and_slot_ids(tables_slots)
 
@@ -808,7 +798,6 @@ class BookingService:
 
         Returns:
             Словарь данных для передачи в CRUD.
-
         """
         data = booking_in.model_dump(exclude_unset=True)
         data['user_id'] = user_id
@@ -828,7 +817,6 @@ class BookingService:
 
         Returns:
             Список ORM-объектов `TableSlotBooking` для передачи в CRUD.
-
         """
         return [
             TableSlotBooking(
@@ -840,7 +828,7 @@ class BookingService:
 
     @staticmethod
     def _extract_table_and_slot_ids(
-        tables_slots: list[TableSlot],
+        tables_slots: Sequence[TableSlotLike],
     ) -> tuple[set[int], set[int]]:
         """Извлекает идентификаторы столов и слотов для запросов к БД.
 
@@ -851,7 +839,6 @@ class BookingService:
             Кортеж из двух множеств:
             - уникальные идентификаторы столов;
             - уникальные идентификаторы слотов.
-
         """
         table_ids: set[int] = set()
         slot_ids: set[int] = set()
