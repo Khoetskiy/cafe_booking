@@ -20,9 +20,6 @@ from app.services.booking import booking_service
 router = APIRouter()
 
 
-# TODO: проверить все ручки по аналогии с другими ручками
-
-
 @router.get(
     '/',
     response_model=list[BookingInfo],
