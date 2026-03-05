@@ -39,7 +39,6 @@ router = APIRouter()
         **UNAUTHORIZED_RESPONSE,
         **NOT_FOUND_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
-        # FIXME: Надо ли? и во всех сущностях проверить
     },
 )
 async def get_time_slots_list(
@@ -160,7 +159,7 @@ async def create_time_slot(
         **UNAUTHORIZED_RESPONSE,
         **FORBIDDEN_RESPONSE,
         **NOT_FOUND_RESPONSE,
-        **VALIDATION_ERROR_RESPONSE,  # FIXME: Надо ли? и во всех сущностях проверить
+        **VALIDATION_ERROR_RESPONSE,
     },
 )
 async def get_time_slot_by_id(
