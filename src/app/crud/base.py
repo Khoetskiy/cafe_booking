@@ -1,8 +1,11 @@
+from collections.abc import Sequence
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Load
+from sqlalchemy.sql import Select
 
 from app.core.db import Base
 
@@ -50,7 +53,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         filters: list[dict[str, Any]] | None = None,
         *,
         session: AsyncSession,
-        options: list[Any] | None = None,
+        options: Sequence[Load] | None = None,
     ) -> list[ModelType]:
         """Возвращает список объектов модели с поддержкой AND / OR фильтрации.
 
@@ -81,12 +84,12 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         Args:
             filters: Список описаний фильтров или None.
             session: Асинхронная SQLAlchemy-сессия.
-            options: Список опций SQLAlchemy (joinedload, selectinload),
-            которые могут быть применены к запросу через stmt.options().
+            options: Последовательность ORM-опций загрузки (`Load`), например
+                `selectinload(Model.relation)`, `joinedload(Model.relation)`,
+                которые могут быть применены к запросу через `stmt.options()`.
 
         Returns:
             Список объектов модели.
-
         """
         stmt = select(self.model)
 
@@ -111,9 +114,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
             stmt = stmt.where(and_(*expressions))
 
-        if options:
-            for option in options:
-                stmt = stmt.options(option)
+        stmt = self._apply_stmt_options(stmt, options)
 
         result = await session.execute(stmt)
         return result.scalars().all()
@@ -253,6 +254,32 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def _get_model_fields(self) -> set[str]:
         """Возвращает имена всех полей SQLAlchemy-модели."""
         return set(self.model.__mapper__.columns.keys())
+
+    @staticmethod
+    def _apply_stmt_options(
+        stmt: Select,
+        options: Sequence[Load] | None,
+    ) -> Select:
+        """Применяет ORM-опции загрузки к SQLAlchemy-выражению.
+
+        Метод добавляет к выражению `Select` стратегии загрузки связей
+        (например `selectinload`, `joinedload`) через `stmt.options()`.
+
+        Используется для управления eager loading связей на уровне запроса.
+
+        Args:
+            stmt: SQLAlchemy выражение `Select`, к которому
+                                необходимо применить ORM-опции.
+            options: Последовательность ORM-опций загрузки (`Load`), например
+                `selectinload(Model.relation)`, `joinedload(Model.relation)`.
+                Если `None` — выражение возвращается без изменений.
+
+        Returns:
+            Обновлённое выражение `Select` с применёнными ORM-опциями.
+        """
+        if not options:
+            return stmt
+        return stmt.options(*options)
 
     def _apply_relationships(
         self,

@@ -226,7 +226,7 @@ def require_roles(*roles: UserRole) -> Callable[..., User]:
 
 async def can_create_user(
     current_user: User | None = Depends(get_current_user_optional),
-) -> None:
+) -> User | None:
     """Проверяет право на создание нового пользователя.
 
     Разрешает создание пользователя в следующих случаях:
@@ -241,14 +241,14 @@ async def can_create_user(
 
     Raises:
         HTTPException: 403, если авторизованный пользователь
-            не имеет прав на создание нового пользователя.
+                не имеет прав на создание нового пользователя.
 
     """
     if current_user is None:
-        return
+        return None
 
     if current_user.role in {UserRole.ADMIN, UserRole.MANAGER}:
-        return
+        return current_user
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

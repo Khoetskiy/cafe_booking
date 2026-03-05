@@ -4,54 +4,9 @@ from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.core.exceptions import UserAlreadyExistsError, UserNotFoundError
-from app.schemas.error import ErrorResponse
+from app.schemas import ErrorResponse
 
 logger = logging.getLogger(__name__)
-
-
-async def user_not_found_handler(
-    request: Request,
-    exc: UserNotFoundError,
-) -> JSONResponse:
-    """Обрабатывает ошибку отсутствия пользователя.
-
-    Вызывается, когда в любом слое приложения выбрасывается
-    исключение UserNotFoundError.
-
-    Возвращает HTTP 404 в формате ErrorResponse.
-    """
-    logger.warning(str(exc))
-
-    return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content=ErrorResponse(
-            code=status.HTTP_404_NOT_FOUND,
-            message=str(exc),
-        ).model_dump(),
-    )
-
-
-async def user_already_exists_handler(
-    request: Request,
-    exc: UserAlreadyExistsError,
-) -> JSONResponse:
-    """Обрабатывает ошибку конфликта уникальных данных пользователя.
-
-    Используется, когда при создании или обновлении пользователя
-    обнаружен конфликт (email, username и т.п.).
-
-    Возвращает HTTP 409 в формате ErrorResponse.
-    """
-    logger.warning(str(exc))
-
-    return JSONResponse(
-        status_code=status.HTTP_409_CONFLICT,
-        content=ErrorResponse(
-            code=status.HTTP_409_CONFLICT,
-            message=str(exc),
-        ).model_dump(),
-    )
 
 
 async def validation_error_handler(

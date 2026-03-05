@@ -182,9 +182,7 @@ ignore = [
     "D105",   # magic methods
     "D106",   # metaclasses
     "D107",   # __init__
-    "D205",   # 1 blank line required
-    "D413",   # Missing blank line after last section
-    "D417",   # Missing trailing newline in docstring
+
     # "D203",   # incorrect-blank-line-before-class (conflicts with D211)
     # "D212",   # Multi-line docstring summary should start at the first line
 
@@ -248,6 +246,7 @@ allow-star-arg-any = true
 "scripts/**/*.py" = ["T20"]
 "**/migrations/*.py" = ["ALL"]
 "*/settings/*.py" = ["F403", "F405", "E501", "T201", "PGH004", "TID252"]
+"*/schemas/slot.py" = ["TRY004"]
 
 [tool.ruff.format]
 quote-style = "single"

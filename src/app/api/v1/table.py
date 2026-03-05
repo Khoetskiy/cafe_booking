@@ -1,466 +1,321 @@
-import logging
-
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.db import get_async_session
 from app.core.responses import (
+    CONFLICT_RESPONSE,
+    CREATED_RESPONSE,
     FORBIDDEN_RESPONSE,
     NOT_FOUND_RESPONSE,
     OK_RESPONSE,
     UNAUTHORIZED_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
 )
-from app.crud.table import table_crud
-from app.models import Table, User, UserRole
+from app.models import User
 from app.schemas import TableCreate, TableInfo, TableUpdate
 from app.services.auth import current_active_user, current_admin_or_manager
-from app.validators.table import (
-    check_cafe_exists,
-    check_cafe_is_active,
-    manager_assigned_to_cafe,
-    )
-
-logger = logging.getLogger(__name__)
+from app.services.table import table_service
 
 router = APIRouter()
 
 
 @router.get(
-    '/{table_id}',
-    response_model=TableInfo,
-    summary='Получение информации о столе в кафе по его ID.',
-    description='Для администраторов и менеджеров этого кафе - все столы, '
-    'для пользователей и остальных менеджеров - только активные.',
+    '/',
+    response_model=list[TableInfo],
+    summary='Список столов в кафе',
+    description=(
+        'Возвращает список столов кафе.\n\n'
+        '- Администратор может получать столы любого кафе и управлять '
+        'параметром `show_all`.\n'
+        '- Менеджер может получать столы только того кафе, которым '
+        'он управляет, и в этом случае также '
+        'может использовать параметр `show_all`.\n'
+        '- Обычные пользователи и менеджеры других кафе могут получать только '
+        'активные столы активных кафе, параметр `show_all` игнорируется.\n'
+        '- Неавторизованные пользователи не допускаются.'
+    ),
     responses={
         **OK_RESPONSE,
-        **FORBIDDEN_RESPONSE,
-        **NOT_FOUND_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
+        **NOT_FOUND_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
     },
 )
-async def get_table(
-    cafe_id: int,
-    table_id: int,
-    current_active_user: User = Depends(current_active_user),
+async def get_tables_list(
+    cafe_id: int = Path(..., description='ID кафе'),
+    show_all: bool = Query(
+        default=False,
+        description=(
+            'Показывать все столы, включая неактивные. '
+            'По умолчанию показывает только активные столы.'
+        ),
+    ),
+    user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
-) -> Table:
-    """Получение информации о столе с учётом прав пользователя."""
-    logger.info(
-        'Запрос стола. cafe_id=%d, table_id=%d, user_id=%d, role=%s',
-        cafe_id,
-        table_id,
-        current_active_user.id,
-        current_active_user.role.value,
-        extra={
-            'user': f'{current_active_user.username} '
-                    f'id={current_active_user.id}',
-        },
-    )
-    cafe = await check_cafe_exists(cafe_id, session)
-    admin = current_active_user.role == UserRole.ADMIN
-    current_cafe_manager = await manager_assigned_to_cafe(
-        session,
-        current_active_user.id,
-        cafe_id,
-        )
-    await check_cafe_is_active(cafe, admin, current_cafe_manager)
-    logger.debug(
-        'Кафе найдено. cafe_id=%d',
-        cafe_id,
-        extra={
-            'user': f'{current_active_user.username} '
-                    f'id={current_active_user.id}',
-        },
-    )
-    show_all = admin or current_cafe_manager
-    table = await table_crud.get_by_cafe_and_id_with_show(
-        session=session,
-        cafe_id=cafe.id,
-        table_id=table_id,
+) -> list[TableInfo]:
+    """Возвращает список столов в указанном кафе.
+
+    Список формируется с учетом роли пользователя и состояния кафе.
+
+    Доступ:
+    - администратор может получать столы любого кафе и управлять
+    параметром `show_all`;
+    - менеджер может получать столы только того кафе, которым он управляет,
+    и также использовать параметр `show_all`;
+    - обычные пользователи и менеджеры других кафе получают
+    только активные столы активного кафе, параметр `show_all` игнорируется.
+
+    Args:
+        cafe_id: Идентификатор кафе.
+        show_all: Флаг показа всех столов, включая неактивные.
+        user: Текущий аутентифицированный пользователь.
+        session: Асинхронная SQLAlchemy-сессия.
+
+    Returns:
+        Список столов кафе.
+    """
+    return await table_service.get_tables_list(
+        cafe_id=cafe_id,
         show_all=show_all,
+        user=user,
+        session=session,
     )
-    if not table:
-        logger.warning(
-            'Стол не найден. cafe_id=%d, table_id=%d, user_id=%d',
-            cafe_id,
-            table_id,
-            current_active_user.id,
-            extra={
-                'user': f'{current_active_user.username} '
-                        f'id={current_active_user.id}',
-            },
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Стол {table_id} не найден.',
-        )
-    logger.info(
-        'Стол возвращён. cafe_id=%d, table_id=%d, is_active=%s',
-        cafe_id,
-        table_id,
-        table.is_active,
-        extra={
-            'user': f'{current_active_user.username} '
-                    f'id={current_active_user.id}',
-        },
+
+
+@router.post(
+    '/',
+    response_model=TableInfo,
+    status_code=status.HTTP_201_CREATED,
+    summary='Новый стол в кафе',
+    responses={
+        **CREATED_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+    description=(
+        'Создает новый стол в кафе. '
+        'Доступно администраторам для любого кафе, '
+        'а также менеджерам — только для тех кафе, '
+        'которыми они управляют.'
+    ),
+)
+async def create_table(
+    cafe_id: int = Path(..., description='ID кафе'),
+    *,
+    table_in: TableCreate,
+    user: User = Depends(current_admin_or_manager),
+    session: AsyncSession = Depends(get_async_session),
+) -> TableInfo:
+    """Создает новый стол в указанном кафе.
+
+    Позволяет добавить новый стол в кафе с учетом
+    прав доступа пользователя.
+
+    Доступ:
+    - администратор может создавать столы в любом кафе;
+    - менеджер может создавать столы только в кафе, которым он управляет.
+
+    Перед созданием выполняется:
+    - проверка существования кафе;
+    - проверка прав доступа пользователя;
+    - валидация количества посадочных мест.
+
+    Args:
+        cafe_id: Идентификатор кафе, в котором создаётся стол.
+        table_in: Данные для создания стола.
+        user: Текущий аутентифицированный пользователь.
+        session: Асинхронная SQLAlchemy-сессия.
+
+    Returns:
+        Информация о созданном столе.
+
+    Raises:
+        HTTPException:
+            - 403: Если у пользователя недостаточно прав.
+            - 404: Если кафе не найдено.
+            - 422: Если данные не прошли валидацию.
+    """
+    return await table_service.create_table(
+        cafe_id=cafe_id,
+        table_in=table_in,
+        user=user,
+        session=session,
     )
-    return table
+
+
+@router.get(
+    '/{table_id}',
+    response_model=TableInfo,
+    summary='Информация о столе в кафе по его ID',
+    description=(
+        'Возвращает информацию о столе в указанном кафе.\n\n'
+        '- Администратор имеет доступ к любым столам, '
+        'независимо от их активности.\n'
+        '- Менеджер имеет полный доступ к столам кафе, '
+        'в котором он является менеджером.\n'
+        '- Менеджер, не являющийся менеджером данного кафе, '
+        'имеет доступ только к активным столам активного кафе.\n'
+        '- Обычный пользователь имеет доступ только к активным столам '
+        'активного кафе.\n'
+        '- Неавторизованные пользователи не допускаются.'
+    ),
+    responses={
+        **OK_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def get_table_by_id(
+    cafe_id: int = Path(..., description='ID кафе'),
+    table_id: int = Path(..., description='ID стола'),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> TableInfo:
+    """Возвращает информацию о столе по его идентификатору.
+
+    Доступ к столу определяется ролью пользователя и состоянием кафе.
+
+    - Администратор имеет доступ ко всем столам.
+    - Менеджер имеет полный доступ к столам своего кафе.
+    - Менеджер вне своего кафе и обычный пользователь
+        имеют доступ только к активным столам активного кафе.
+
+    Args:
+        cafe_id: Идентификатор кафе.
+        table_id: Идентификатор стола.
+        user: Текущий авторизованный пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Информация о столе.
+
+    Raises:
+        HTTPException:
+            - 401: Если пользователь не авторизован.
+            - 403: Если у пользователя нет прав доступа.
+            - 404: Если стол или кафе не найдены.
+    """
+    return await table_service.get_table_by_id(
+        cafe_id=cafe_id,
+        table_id=table_id,
+        user=user,
+        session=session,
+    )
 
 
 @router.patch(
     '/{table_id}',
     response_model=TableInfo,
-    dependencies=[Depends(current_admin_or_manager)],
-    summary='Обновление информации о столе в кафе по его ID.',
-    description='Обновляет только переданные поля. Для ADMIN и MANAGER.',
+    summary='Обновление информации о столе в кафе по его ID',
+    description=(
+        'Обновление информации о столе в кафе по его ID. '
+        'Доступно администраторам для любого кафе, '
+        'а также менеджерам — только для тех кафе, '
+        'которыми они управляют.'
+    ),
     responses={
+        **OK_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
         **FORBIDDEN_RESPONSE,
         **NOT_FOUND_RESPONSE,
-        **UNAUTHORIZED_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
     },
 )
 async def update_table(
-    cafe_id: int,
-    table_id: int,
-    update_data: TableUpdate,
-    current_user: User = Depends(current_admin_or_manager),
+    cafe_id: int = Path(..., description='ID кафе'),
+    table_id: int = Path(..., description='ID стола'),
+    *,
+    table_in: TableUpdate,
+    user: User = Depends(current_admin_or_manager),
     session: AsyncSession = Depends(get_async_session),
-) -> Table:
-    """Обновление информации о столе (для администраторов и менеджеров)."""
-    logger.info(
-        'Обновление стола. cafe_id=%d, table_id=%d, data=%s',
-        cafe_id,
-        table_id,
-        update_data.model_dump_json(),
-        extra={
-            'user': f'{current_user.username} '
-                    f'id={current_user.id}',
-        },
-    )
+) -> TableInfo:
+    """Обновляет данные стола по его идентификатору.
 
-    cafe = await check_cafe_exists(cafe_id, session)
-    if not (
-        await manager_assigned_to_cafe(session, current_user.id, cafe_id)
-        or current_user.role == UserRole.ADMIN
-    ):
-        logger.warning(
-            'Не авторизованный в этом кафе менеджер. cafe_id=%d, user_id=%d',
-            cafe_id,
-            current_user.id,
-            extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-            },
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='У вас нет прав управлять столами этого кафе.',
-        )
-    logger.debug(
-        'Кафе найдено. cafe_id=%d',
-        cafe_id,
-        extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-        },
-    )
+    Позволяет частично обновить параметры стола
+    (описание, количество посадочных мест, статус активности).
 
-    table = await table_crud.get_by_cafe_and_id(
-        session=session,
-        cafe_id=cafe.id,
+    Доступ предоставляется:
+    - администраторам — для любого кафе;
+    - менеджерам — только для тех кафе, которыми они управляют.
+
+    Перед сохранением изменений выполняется:
+    - проверка существования кафе и стола;
+    - проверка прав доступа пользователя;
+    - валидация количества посадочных мест (если поле передано).
+
+    Args:
+        cafe_id: Идентификатор кафе.
+        table_id: Идентификатор стола.
+        table_in: Данные для обновления стола.
+        user: Текущий аутентифицированный пользователь.
+        session: Асинхронная SQLAlchemy-сессия.
+
+    Returns:
+        Обновлённая информация о столе.
+
+    Raises:
+        HTTPException:
+            - 403: Если у пользователя недостаточно прав.
+            - 404: Если кафе или стол не найдены.
+            - 422: Если количество мест некорректно.
+    """
+    return await table_service.update_table(
+        cafe_id=cafe_id,
         table_id=table_id,
-    )
-    if not table:
-        logger.warning(
-            'Стол не найден при обновлении. cafe_id=%d, table_id=%d',
-            cafe_id,
-            table_id,
-            extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-            },
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Стол {table_id} не найден.',
-        )
-
-    updated_table = await table_crud.update(
-        db_obj=table,
-        obj_in=update_data,
+        table_in=table_in,
+        user=user,
         session=session,
     )
-    await session.refresh(updated_table, attribute_names=['cafe'])
-    logger.info(
-        'Стол обновлён. cafe_id=%d, table_id=%d',
-        cafe_id,
-        table_id,
-        extra={
-            'user': f'{current_user.username} '
-                    f'id={current_user.id}',
-        },
-    )
-    return updated_table
-
-
-@router.post(
-    '',
-    response_model=TableInfo,
-    dependencies=[Depends(current_admin_or_manager)],
-    summary='Создаёт новый стол в кафе с указанными параметрами.',
-    description='Доступно только для ADMIN и MANAGER.',
-    responses={
-        **FORBIDDEN_RESPONSE,
-        **NOT_FOUND_RESPONSE,
-        **UNAUTHORIZED_RESPONSE,
-        **VALIDATION_ERROR_RESPONSE,
-    },
-)
-async def create_table(
-    cafe_id: int,
-    data: TableCreate,
-    current_user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
-) -> Table:
-    """Новый стол в кафе (для администраторов и менеджеров)."""
-    logger.info(
-        'Создание стола. cafe_id=%d, data=%s',
-        cafe_id,
-        data.model_dump_json(),
-        extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-        },
-    )
-    await check_cafe_exists(cafe_id, session)
-    if not (
-        await manager_assigned_to_cafe(session, current_user.id, cafe_id)
-        or current_user.role == UserRole.ADMIN
-    ):
-        logger.warning(
-            'Не авторизованный в этом кафе менеджер. cafe_id=%d, user_id=%d',
-            cafe_id,
-            current_user.id,
-            extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-            },
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Нельзя создавать столы в чужом кафе.',
-        )
-    logger.debug(
-        'Кафе существует. cafe_id=%d',
-        cafe_id,
-        extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-        },
-    )
-    create_data = data.model_dump()
-    create_data['cafe_id'] = cafe_id
-    new_table = await table_crud.create(
-        obj_in=create_data,
-        session=session,
-    )
-    await session.refresh(new_table, attribute_names=['cafe'])
-    logger.info(
-        'Стол создан. cafe_id=%d, table_id=%d',
-        cafe_id,
-        new_table.id,
-        extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-        },
-    )
-    return new_table
-
-
-@router.get(
-    '',
-    response_model=list[TableInfo],
-    summary='Получение списка доступных для бронирования столов в кафе.',
-    description='Для администраторов и менеджеров - все столы, '
-    'для пользователей - только активные.',
-    responses={
-        **NOT_FOUND_RESPONSE,
-        **UNAUTHORIZED_RESPONSE,
-        **VALIDATION_ERROR_RESPONSE,
-    },
-)
-async def list_tables(
-    cafe_id: int,
-    show_all: bool = Query(default=False),
-    current_active_user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
-) -> list[Table]:
-    """Список столов с учётом прав пользователя и выбором полного списка."""
-    logger.info(
-        'Список столов. cafe_id=%d, show_all=%s, user_id=%d, role=%s',
-        cafe_id,
-        show_all,
-        current_active_user.id,
-        current_active_user.role.value,
-        extra={
-                'user': f'{current_active_user.username} '
-                        f'id={current_active_user.id}',
-        },
-    )
-    cafe = await check_cafe_exists(cafe_id, session)
-    admin = current_active_user.role == UserRole.ADMIN
-    current_cafe_manager = await manager_assigned_to_cafe(
-        session,
-        current_active_user.id,
-        cafe_id,
-        )
-    await check_cafe_is_active(cafe, admin, current_cafe_manager)
-    logger.debug(
-        'Кафе найдено. cafe_id=%d',
-        cafe_id,
-        extra={
-                'user': f'{current_active_user.username} '
-                        f'id={current_active_user.id}',
-        },
-    )
-    can_show_all = admin or current_cafe_manager
-    if show_all and can_show_all:
-        logger.debug(
-            'Администратор/менеджер запрашивает список всех столов cafe_id=%d',
-            cafe_id,
-            extra={
-                'user': f'{current_active_user.username} '
-                        f'id={current_active_user.id}',
-            },
-        )
-        filters = [
-            {'field': 'cafe_id', 'op': 'eq', 'value': cafe_id},
-        ]
-    else:
-        logger.debug(
-            'Пользователь запрашивает активные столы. cafe_id=%d, role=%s',
-            cafe_id,
-            current_active_user.role.value,
-            extra={
-                'user': f'{current_active_user.username} '
-                        f'id={current_active_user.id}',
-            },
-        )
-        filters = [
-            {'field': 'cafe_id', 'op': 'eq', 'value': cafe_id},
-            {'field': 'is_active', 'op': 'eq', 'value': True},
-        ]
-    tables = await table_crud.get_multi(
-        filters=filters,
-        session=session,
-        options=[selectinload(Table.cafe)],
-    )
-    logger.info(
-        'Возвращён список столов. cafe_id=%d, count=%d, show_all=%s, role=%s',
-        cafe_id,
-        len(tables),
-        show_all,
-        current_active_user.role.value,
-        extra={
-                'user': f'{current_active_user.username} '
-                        f'id={current_active_user.id}',
-        },
-    )
-    return tables
 
 
 @router.delete(
     '/{table_id}',
+    status_code=status.HTTP_200_OK,
     response_model=TableInfo,
-    dependencies=[Depends(current_admin_or_manager)],
-    summary='Мягкое удаление стола (деактивация), для ADMIN и MANAGER.',
-    description='Деактивирует стол, устанавливая is_active=False.',
+    summary='Деактивировать стол',
+    description=(
+        'Деактивирует стол путем установки атрибута `is_active=False`. '
+        'Доступно только администраторам и менеджерам данного кафе.'
+    ),
     responses={
+        **OK_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
         **FORBIDDEN_RESPONSE,
         **NOT_FOUND_RESPONSE,
-        **UNAUTHORIZED_RESPONSE,
+        **CONFLICT_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
     },
 )
-async def delete_table(
-    cafe_id: int,
-    table_id: int,
-    current_user: User = Depends(current_admin_or_manager),
+async def deactivate_table(
+    cafe_id: int = Path(..., description='ID кафе'),
+    table_id: int = Path(..., description='ID стола'),
+    user: User = Depends(current_admin_or_manager),
     session: AsyncSession = Depends(get_async_session),
-) -> Table:
-    """Мягкое удаление стола (для администраторов и менеджеров)."""
-    logger.info(
-        'Деактивация стола. cafe_id=%d, table_id=%d',
-        cafe_id,
-        table_id,
-        extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-        },
-    )
+) -> TableInfo:
+    """Деактивирует стол по ID.
 
-    cafe = await check_cafe_exists(cafe_id, session)
-    if not (
-        await manager_assigned_to_cafe(session, current_user.id, cafe_id)
-        or current_user.role == UserRole.ADMIN
-    ):
-        logger.warning(
-            'Не авторизованный в этом кафе менеджер. cafe_id=%d, user_id=%d',
-            cafe_id,
-            current_user.id,
-            extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-            },
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Нельзя удалять столы в чужом кафе.',
-        )
-    logger.debug(
-        'Кафе найдено. cafe_id=%d',
-        cafe_id,
-        extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-        },
-    )
+    Args:
+        cafe_id: Идентификатор кафе, к которому относится стол.
+        table_id: Идентификатор стола для деактивации.
+        user: Текущий аутентифицированный пользователь.
+        session: Асинхронная сессия SQLAlchemy.
 
-    table = await table_crud.get_by_cafe_and_id(
-        session=session,
-        cafe_id=cafe.id,
+    Returns:
+        Объект с обновленной информацией о столе.
+
+    Raises:
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если кафе или стол не найдены.
+            - 409: Если стол уже деактивирован.
+    """
+    return await table_service.deactivate_table(
+        cafe_id=cafe_id,
         table_id=table_id,
-    )
-    if not table:
-        logger.warning(
-            'Стол не найден при деактивации. cafe_id=%d, table_id=%d',
-            cafe_id,
-            table_id,
-            extra={
-                'user': f'{current_user.username} '
-                        f'id={current_user.id}',
-            },
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Стол {table_id} не найден.',
-        )
-
-    deactivated_table = await table_crud.soft_delete(
-        db_obj=table,
+        user=user,
         session=session,
     )
-    logger.info(
-        'Стол деактивирован. cafe_id=%d, table_id=%d',
-        cafe_id,
-        table_id,
-        extra={
-            'user': f'{current_user.username} '
-                    f'id={current_user.id}',
-        },
-    )
-    return deactivated_table

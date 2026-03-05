@@ -40,18 +40,19 @@ async def get_cafe_or_404(
 
 
 def can_manage_cafe(user: User, cafe_id: int) -> bool:
-    """Определяет, может ли пользователь управлять указанным кафе.
+    """Проверяет, является ли пользователь менеджером указанного кафе.
 
-    Пользователь считается управляющим кафе, если:
-    - его роль позволяет управление кафе;
-    - кафе принадлежит пользователю как менеджеру.
+    Пользователь считается менеджером кафе, если:
+    - его роль — MANAGER;
+    - кафе закреплено за пользователем.
 
     Args:
         user: Текущий пользователь.
         cafe_id: Идентификатор кафе.
 
     Returns:
-        True, если пользователь может управлять кафе, иначе False.
+        True, если пользователь является менеджером данного кафе.
+        False — в противном случае.
 
     """
     return user.role == UserRole.MANAGER and user.cafe_id == cafe_id
@@ -100,13 +101,10 @@ class CafeService:
         """Возвращает кафе по ID с учётом прав пользователя.
 
         Правила доступа:
-        - ADMIN:
-            * может получить любое кафе.
-        - MANAGER:
-            * может получить активное кафе;
-            * может получить своё кафе независимо от статуса.
-        - USER:
-            * может получить только активное кафе.
+        - Администратор может получить любое кафе.
+        - Менеджер может получить своё кафе независимо от статуса.
+        - Обычный пользователь и менеджер другого кафе могут получить
+                                                    только активное кафе.
 
         Args:
             cafe_id: Идентификатор кафе.
@@ -118,45 +116,34 @@ class CafeService:
 
         Raises:
             HTTPException:
-                - 404: если кафе не найдено;
-                - 403: если доступ запрещён.
+                - 403: если доступ запрещён;
+                - 404: если кафе не найдено.
+
 
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
-        if user.role == UserRole.ADMIN:
+        if user.role == UserRole.ADMIN or can_manage_cafe(user, cafe.id):
             logger.info(
-                'Получено кафе администратором: %s',
+                'Получено кафе с расширенным доступом "role=%s": %s',
+                user.role,
                 cafe.__repr__(),
                 extra={'user': f'{user.username} id={user.id}'},
             )
             return cafe
 
-        if can_manage_cafe(user, cafe.id):
-            logger.info(
-                'Получено кафе менеджером: %s',
-                cafe.__repr__(),
-                extra={'user': f'{user.username} id={user.id}'},
-            )
-            return cafe
-
-        if user.role in {UserRole.USER, UserRole.MANAGER} and cafe.is_active:
-            logger.info(
-                'Получено кафе пользователем: %s',
-                cafe.__repr__(),
-                extra={'user': f'{user.username} id={user.id}'},
-            )
-            return cafe
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Недостаточно прав для доступа к кафе',
+        ensure_cafe_is_active(cafe)
+        logger.info(
+            'Получено кафе с публичным доступом: %s',
+            cafe.__repr__(),
+            extra={'user': f'{user.username} id={user.id}'},
         )
+        return cafe
 
     async def get_cafes_list(
         self,
-        user: User,
         show_all: bool,
+        user: User,
         session: AsyncSession,
     ) -> list[Cafe]:
         """Возвращает список кафе с учётом роли пользователя и флага show_all.
@@ -178,31 +165,42 @@ class CafeService:
 
         """
         logger.info(
-            'Запрос списка кафе',
+            'Запрос списка кафе (role=%s, show_all=%s)',
+            user.role,
+            show_all,
             extra={'user': f'{user.username} id={user.id}'},
         )
+
         if user.role == UserRole.ADMIN:
-            if show_all:
-                return await cafe_crud.get_cafes(session=session)
-            return await cafe_crud.get_active_cafes(session=session)
-
-        if user.role == UserRole.MANAGER:
-            cafes = await cafe_crud.get_active_cafes(session=session)
-
-            if not show_all or user.cafe_id is None:
-                return cafes
-
-            own_cafe = await cafe_crud.get_by_id(
-                obj_id=user.cafe_id,
-                session=session,
+            cafes = (
+                await cafe_crud.get_multi(session=session)
+                if show_all
+                else await cafe_crud.get_active_cafes(session=session)
             )
 
-            if own_cafe and not own_cafe.is_active:
-                cafes.append(own_cafe)
+        elif user.role == UserRole.MANAGER:
+            cafes = await cafe_crud.get_active_cafes(session=session)
 
-            return cafes
+            if show_all and user.cafe_id is not None:
+                own_cafe = await cafe_crud.get_by_id(
+                    obj_id=user.cafe_id,
+                    session=session,
+                )
+                if own_cafe and not own_cafe.is_active:
+                    cafes.append(own_cafe)
 
-        return await cafe_crud.get_active_cafes(session=session)
+        else:
+            cafes = await cafe_crud.get_active_cafes(session=session)
+
+        logger.info(
+            'Получен список кафе: count=%s, role=%s, show_all=%s',
+            len(cafes),
+            user.role,
+            show_all,
+            extra={'user': f'{user.username} id={user.id}'},
+        )
+
+        return cafes
 
     async def create_cafe(
         self,
@@ -230,7 +228,9 @@ class CafeService:
             Созданный объект Cafe с назначенными менеджерами.
 
         """
-        await self._check_existing_cafe(
+        self._ensure_admin_permission(user)
+
+        await self._check_cafe_unique(
             name=cafe_in.name,
             address=cafe_in.address,
             session=session,
@@ -242,7 +242,7 @@ class CafeService:
         )
         cafe = await cafe_crud.create(cafe_in, session=session)
 
-        self._assign_managers_to_cafe(managers, cafe.id, session=session)
+        self._assign_cafe_managers(managers, cafe.id, session=session)
 
         await session.commit()
         await session.refresh(cafe)
@@ -264,12 +264,12 @@ class CafeService:
     ) -> Cafe:
         """Обновляет данные кафе и список его менеджеров с учётом прав доступа.
 
-        Правила доступа:
-            - Администратор может обновлять любое кафе.
-            - Менеджер может обновлять только то кафе, к которому он привязан.
-            - Обычный пользователь не имеет доступа к обновлению кафе.
+        Доступ:
+        - Администратор может обновлять любое кафе.
+        - Менеджер может обновлять только то кафе, к которому он привязан.
+        - Обычный пользователь не имеет доступа к обновлению кафе.
 
-        Метод выполняет:
+        Метод:
         - проверку существования кафе;
         - проверку прав доступа пользователя к данному кафе;
         - проверку уникальности (name, address), если они меняются;
@@ -279,7 +279,7 @@ class CafeService:
         Правила:
         - Менеджеры могут быть привязаны только к одному кафе;
         - При обновлении разрешено сохранять менеджеров,
-                        уже привязанных к текущему кафе;
+                            уже привязанных к текущему кафе;
         - Операция выполняется атомарно.
 
         Args:
@@ -307,7 +307,7 @@ class CafeService:
             )
 
         if cafe_in.name or cafe_in.address:
-            await self._check_existing_cafe(
+            await self._check_cafe_unique(
                 name=cafe_in.name or cafe.name,
                 address=cafe_in.address or cafe.address,
                 exclude_id=cafe.id,
@@ -353,6 +353,7 @@ class CafeService:
 
         Выполняет soft delete кафе путём установки `is_active = False`.
         Кафе не удаляется физически из базы данных.
+        Доступно только администраторам.
 
         Args:
             cafe_id: Идентификатор кафе.
@@ -364,11 +365,13 @@ class CafeService:
 
         Raises:
             HTTPException:
-                - 404: если кафе не найдено;
                 - 403: если недостаточно прав;
+                - 404: если кафе не найдено;
                 - 409: если кафе уже деактивировано.
 
         """
+        self._ensure_admin_permission(user)
+
         cafe = await get_cafe_or_404(cafe_id, session)
 
         if not cafe.is_active:
@@ -403,7 +406,7 @@ class CafeService:
             * при создании кафе (`current_cafe_id=None`) — менеджер
                             не должен быть привязан ни к одному кафе;
             * при обновлении кафе — менеджер может быть привязан
-                        к текущему кафе, но не к любому другому.
+                            к текущему кафе, но не к любому другому.
 
         Args:
             managers_id: Список идентификаторов менеджеров.
@@ -450,7 +453,7 @@ class CafeService:
         return managers
 
     @staticmethod
-    def _assign_managers_to_cafe(
+    def _assign_cafe_managers(
         managers: list[User],
         cafe_id: int,
         session: AsyncSession,
@@ -509,7 +512,7 @@ class CafeService:
                 manager.cafe_id = cafe.id
                 session.add(manager)
 
-    async def _check_existing_cafe(
+    async def _check_cafe_unique(
         self,
         name: str,
         address: str,
@@ -517,13 +520,13 @@ class CafeService:
         *,
         session: AsyncSession,
     ) -> None:
-        """Проверяет уникальность кафе по (name, address).
+        """Проверяет уникальность кафе по `name` и `address`.
 
         Args:
             name: Название кафе.
             address: Адрес кафе.
             exclude_id: ID кафе, которое нужно исключить из проверки
-                (используется при обновлении).
+                                        (используется при обновлении).
             session: Асинхронная сессия SQLAlchemy.
 
         Raises:
@@ -540,6 +543,21 @@ class CafeService:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail='Кафе с таким названием и адресом уже существует',
+            )
+
+    def _ensure_admin_permission(self, user: User) -> None:
+        """Гарантирует, что пользователь является администратором.
+
+        Args:
+            user: Текущий пользователь.
+
+        Raises:
+            HTTPException: Если у пользователя нет прав администратора.
+        """
+        if user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Недостаточно прав доступа',
             )
 
 

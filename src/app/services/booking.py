@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Any
 
@@ -18,9 +19,9 @@ from app.services.cafe import (
     ensure_cafe_is_active,
     get_cafe_or_404,
 )
-from app.services.user import get_user_or_404
 
 logger = logging.getLogger(__name__)
+type TableSlotLike = TableSlot | TableSlotBooking
 
 
 class BookingService:
@@ -44,7 +45,7 @@ class BookingService:
     ) -> Booking:
         """Возвращает бронирование по ID с учётом прав доступа пользователя.
 
-        Метод выполняет следующие шаги:
+        Выполняет следующие шаги:
         - Получает бронирование по идентификатору или выбрасывает 404;
         - Проверяет, имеет ли пользователь право просматривать бронирование;
         - Возвращает бронирование при наличии доступа.
@@ -56,29 +57,23 @@ class BookingService:
 
         Args:
             booking_id: Идентификатор бронирования.
-            user: Текущий авторизованный пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Объект Booking.
 
         Raises:
-            HTTPException: Если бронирование не существует,
-                    или пользователь не имеет к нему доступа.
-
+            HTTPException:
+                - 404: Если бронирование не найдено или нет прав доступа.
         """
         booking = await self._get_booking_or_404(booking_id, session)
 
-        logger.info(
-            'Запрошено бронирование: %s',
-            booking.__repr__(),
-            extra={'user': f'{user.username} id={user.id}'},
-        )
-
         if not self._can_view_booking(user, booking):
             logger.warning(
-                'Попытка доступа к бронированию без прав: %s',
-                booking.__repr__(),
+                'Отказ в доступе к бронированию id=%s, role=%s',
+                booking.id,
+                user.role,
                 extra={'user': f'{user.username} id={user.id}'},
             )
             raise HTTPException(
@@ -86,9 +81,15 @@ class BookingService:
                 detail='Бронирование не найдено',
             )
 
+        logger.info(
+            'Получено бронирование %s',
+            booking.__repr__(),
+            extra={'user': f'{user.username} id={user.id}'},
+        )
+
         return booking
 
-    async def get_bookings_list(
+    async def get_management_bookings_list(
         self,
         show_all: bool,
         cafe_id: int | None,
@@ -96,18 +97,30 @@ class BookingService:
         current_user: User,
         session: AsyncSession,
     ) -> list[Booking]:
-        """Возвращает список бронирований с учётом прав доступа пользователя.
+        """Возвращает список бронирований в управленческом контексте.
 
-        Формирует список бронирований на основе роли текущего пользователя
-        и переданных параметров фильтрации.
+        Используется для административного и менеджерского просмотра
+        бронирований с возможностью поддержки фильтрации.
+
+        Правила доступа:
+        - Администратор:
+            - Может просматривать бронирования всех кафе.
+            - Может фильтровать по `cafe_id`, `user_id`.
+            - Может управлять отображением неактивных бронирований `show_all`.
+
+        - Менеджер:
+            - Может просматривать бронирования только своего кафе.
+            - Если передан `cafe_id`, он должен совпадать с кафе менеджера.
+            - Может фильтровать по `user_id`.
+            - Может управлять отображением неактивных бронирований `show_all`.
+
 
         Правила доступа:
         - Администратор может просматривать все бронирования, с возможностью
-                                            фильтрации по кафе и пользователю.
+                        фильтрации по кафе, пользователю и статусу активности.
         - Менеджер может просматривать бронирования только тех кафе,
-                                                которыми он управляет.
-        - Обычный пользователь может просматривать только свои бронирования,
-                                        независимо от переданного `user_id`.
+                которыми он управляет с возможностью фильтрации по пользователю
+                                                        и статусу активности.
         - Неактивные бронирования возвращаются только при `show_all=True`.
 
         Args:
@@ -115,69 +128,35 @@ class BookingService:
                                         иначе только активные.
             cafe_id: Идентификатор кафе для фильтрации.
             user_id: Идентификатор пользователя для фильтрации.
-            current_user: Текущий авторизованный пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            current_user: Текущий пользователь (инициатор операции).
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Список объектов Booking, удовлетворяющих условиям фильтрации.
 
         Raises:
-            HTTPException: Если указанное кафе или пользователь не существуют.
-
+            HTTPException:
+                - 403: Если недостаточно прав.
+                - 404: Если кафе не принадлежит менеджеру.
         """
+        if current_user.role not in {UserRole.ADMIN, UserRole.MANAGER}:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Недостаточно прав',
+            )
+
         filters: list[dict[str, Any]] = []
 
-        cafe = None
-        if cafe_id is not None:
-            cafe = await get_cafe_or_404(cafe_id=cafe_id, session=session)
-
-        if current_user.role == UserRole.ADMIN:
-            effective_show_all = show_all
-
-            if cafe_id is not None:
-                filters.append(
-                    {
-                        'field': 'cafe_id',
-                        'op': 'eq',
-                        'value': cafe_id,
-                    }
-                )
-
-            if user_id is not None:
-                user = await get_user_or_404(user_id=user_id, session=session)
-                filters.append(
-                    {
-                        'field': 'user_id',
-                        'op': 'eq',
-                        'value': user.id,
-                    }
-                )
-
-        elif cafe and can_manage_cafe(current_user, cafe.id):
-            effective_show_all = show_all
-            filters.append({'field': 'cafe_id', 'op': 'eq', 'value': cafe.id})
-
-            if user_id is not None:
-                user = await get_user_or_404(user_id=user_id, session=session)
-                filters.append(
-                    {
-                        'field': 'user_id',
-                        'op': 'eq',
-                        'value': user.id,
-                    }
-                )
-
-        else:
-            effective_show_all = False
-
+        if user_id is not None:
             filters.append(
                 {
                     'field': 'user_id',
                     'op': 'eq',
-                    'value': current_user.id,
+                    'value': user_id,
                 }
             )
 
+        if current_user.role == UserRole.ADMIN:
             if cafe_id is not None:
                 filters.append(
                     {
@@ -187,7 +166,22 @@ class BookingService:
                     }
                 )
 
-        if not effective_show_all:
+        elif current_user.role == UserRole.MANAGER:
+            if cafe_id is not None and cafe_id != current_user.cafe_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail='Кафе не найдено',
+                )
+
+            filters.append(
+                {
+                    'field': 'cafe_id',
+                    'op': 'eq',
+                    'value': current_user.cafe_id,
+                }
+            )
+
+        if not show_all:
             filters.append(
                 {
                     'field': 'is_active',
@@ -202,8 +196,65 @@ class BookingService:
         )
 
         logger.info(
-            'Получен список бронирований: count=%s',
+            (
+                'Получен список бронирований: '
+                'count=%s, cafe_id=%s, user_id=%s, show_all=%s, role=%s,'
+            ),
             len(bookings),
+            cafe_id,
+            user_id,
+            show_all,
+            current_user.role,
+            extra={'user': f'{current_user.username} id={current_user.id}'},
+        )
+
+        return bookings
+
+    async def get_my_bookings_list(
+        self,
+        cafe_id: int | None,
+        current_user: User,
+        session: AsyncSession,
+    ) -> list[Booking]:
+        """Возвращает список активных бронирований текущего пользователя.
+
+        Используется в пользовательском контексте (владение).
+
+        Особенности:
+        - Всегда фильтрует по `user_id` текущего пользователя.
+        - Возвращает только активные бронирования (`is_active=True`).
+        - Поддерживает дополнительную фильтрацию по `cafe_id`.
+        - Не зависит от роли пользователя.
+
+        Args:
+            cafe_id: Идентификатор кафе для фильтрации.
+            current_user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Список объектов Booking, удовлетворяющих условиям фильтрации.
+        """
+        filters = [
+            {'field': 'user_id', 'op': 'eq', 'value': current_user.id},
+            {'field': 'is_active', 'op': 'eq', 'value': True},
+        ]
+
+        if cafe_id is not None:
+            filters.append({'field': 'cafe_id', 'op': 'eq', 'value': cafe_id})
+
+        bookings = await booking_crud.get_multi(
+            filters=filters,
+            session=session,
+        )
+
+        logger.info(
+            (
+                'Получен список личных бронирований: '
+                'count=%s, cafe_id=%s, role=%s'
+            ),
+            len(bookings),
+            cafe_id,
+            current_user.role,
             extra={'user': f'{current_user.username} id={current_user.id}'},
         )
 
@@ -228,14 +279,13 @@ class BookingService:
         Args:
             booking_in: Данные для создания бронирования.
             user: Текущий пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Созданный объект Booking.
 
         Raises:
             HTTPException: Если данные некорректны или ресурсы заняты.
-
         """
         cafe = await get_cafe_or_404(
             cafe_id=booking_in.cafe_id,
@@ -330,18 +380,17 @@ class BookingService:
         Args:
             booking_id: Идентификатор бронирования.
             booking_in: Данные для обновления бронирования.
-            user: Текущий авторизованный пользователь.
-            session: Асинхронная SQLAlchemy-сессия.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Обновлённый объект Booking.
 
         Raises:
             HTTPException:
-                - 400: некорректные данные (дата, столы, слоты);
-                - 404: бронирование не найдено или доступ запрещён;
-                - 409: найдено конфликтующее бронирование.
-
+                - 400: Некорректные данные (дата, столы, слоты).
+                - 404: Бронирование не найдено или доступ запрещён.
+                - 409: Найдено конфликтующее бронирование.
         """
         booking = await self._get_booking_or_404(booking_id, session)
 
@@ -359,7 +408,11 @@ class BookingService:
 
         cafe_id = booking_in.cafe_id or booking.cafe_id
         booking_date = booking_in.booking_date or booking.booking_date
-        tables_slots = booking_in.tables_slots or booking.tables_slots
+        tables_slots = (
+            booking_in.tables_slots
+            if booking_in.tables_slots is not None
+            else booking.tables_slots
+        )
 
         if booking_in.cafe_id is not None:
             cafe = await get_cafe_or_404(booking_in.cafe_id, session)
@@ -446,10 +499,9 @@ class BookingService:
 
         Raises:
             HTTPException:
-                - 404: если бронирование не найдено;
-                - 403: если у пользователя нет прав;
-                - 409: если бронирование уже деактивировано.
-
+                - 404: Если бронирование не найдено.
+                - 403: Если у пользователя нет прав.
+                - 409: Если бронирование уже деактивировано.
         """
         booking = await self._get_booking_or_404(booking_id, session)
         if not self._can_update_booking(user, booking):
@@ -499,8 +551,7 @@ class BookingService:
             Объект Booking.
 
         Raises:
-            HTTPException: Если бронирование не найдено.
-
+            HTTPException(404): Если бронирование не найдено.
         """
         booking = await booking_crud.get_by_id(
             obj_id=booking_id,
@@ -530,7 +581,6 @@ class BookingService:
 
         Returns:
             True — если доступ разрешён, False — если доступ запрещён.
-
         """
         if user.role == UserRole.ADMIN:
             return True
@@ -556,7 +606,6 @@ class BookingService:
 
         Returns:
             True — если доступ разрешён, False — если доступ запрещён.
-
         """
         self._ensure_booking_can_be_updated(booking)
 
@@ -576,7 +625,7 @@ class BookingService:
         - с датой не в прошлом;
         - со статусом PENDING.
         """
-        if booking.booking_date < datetime.today().date():
+        if booking.booking_date < date.today():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Прошедшее бронирование нельзя изменять',
@@ -596,9 +645,8 @@ class BookingService:
 
         Raises:
             HTTPException: Если дата бронирования меньше текущей даты.
-
         """
-        if booking_date < datetime.today().date():
+        if booking_date < date.today():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Время бронирования не может быть в прошлом',
@@ -606,7 +654,7 @@ class BookingService:
 
     def _validate_no_duplicate_table_slots(
         self,
-        tables_slots: list[TableSlot],
+        tables_slots: Sequence[TableSlotLike],
     ) -> None:
         """Проверяет отсутствие дублирующихся связок стол–слот.
 
@@ -617,8 +665,7 @@ class BookingService:
             tables_slots: Список связок стол–слот из запроса.
 
         Raises:
-            400: Если одна и та же пара передана более одного раза.
-
+            HTTPException: Если одна и та же пара передана более одного раза.
         """
         pairs = [
             (table_slot.table_id, table_slot.slot_id)
@@ -633,7 +680,7 @@ class BookingService:
     async def _validate_tables_slots(
         self,
         cafe_id: int,
-        tables_slots: list[TableSlot],
+        tables_slots: Sequence[TableSlotLike],
         session: AsyncSession,
     ) -> None:
         """Проверяет существование и принадлежность столов и слотов кафе.
@@ -647,14 +694,13 @@ class BookingService:
         Args:
             cafe_id: Идентификатор кафе, для которого выполняется бронирование.
             tables_slots: Список связок стол–слот, переданных пользователем.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Raises:
-            400: Если хотя бы один слот не существует,
-                    неактивен или не принадлежит кафе;
-            400: Если хотя бы один стол не существует,
-                    неактивен или не принадлежит кафе.
-
+            HTTPException: Если хотя бы один слот не существует,
+                                неактивен или не принадлежит кафе.
+            HTTPException: Если хотя бы один стол не существует,
+                                неактивен или не принадлежит кафе.
         """
         table_ids, slot_ids = self._extract_table_and_slot_ids(tables_slots)
 
@@ -698,7 +744,7 @@ class BookingService:
         self,
         cafe_id: int,
         booking_date: date,
-        tables_slots: list[TableSlot],
+        tables_slots: Sequence[TableSlotLike],
         *,
         exclude_booking_id: int | None = None,
         session: AsyncSession,
@@ -717,11 +763,10 @@ class BookingService:
                         пользователь пытается забронировать.
             exclude_booking_id: Идентификатор бронирования,
                         которое необходимо исключить из проверки.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Raises:
             409: Если найдено хотя бы одно конфликтующее бронирование.
-
         """
         table_ids, slot_ids = self._extract_table_and_slot_ids(tables_slots)
 
@@ -753,7 +798,6 @@ class BookingService:
 
         Returns:
             Словарь данных для передачи в CRUD.
-
         """
         data = booking_in.model_dump(exclude_unset=True)
         data['user_id'] = user_id
@@ -773,7 +817,6 @@ class BookingService:
 
         Returns:
             Список ORM-объектов `TableSlotBooking` для передачи в CRUD.
-
         """
         return [
             TableSlotBooking(
@@ -785,7 +828,7 @@ class BookingService:
 
     @staticmethod
     def _extract_table_and_slot_ids(
-        tables_slots: list[TableSlot],
+        tables_slots: Sequence[TableSlotLike],
     ) -> tuple[set[int], set[int]]:
         """Извлекает идентификаторы столов и слотов для запросов к БД.
 
@@ -796,7 +839,6 @@ class BookingService:
             Кортеж из двух множеств:
             - уникальные идентификаторы столов;
             - уникальные идентификаторы слотов.
-
         """
         table_ids: set[int] = set()
         slot_ids: set[int] = set()

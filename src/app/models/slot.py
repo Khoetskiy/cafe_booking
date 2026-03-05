@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class Slot(Base):
     """Временной слот бронирования для кафе.
 
-    Slot - это временной интервал,
+    Slot — это временной интервал,
     в который в кафе возможно бронирование столов.
     Слоты не зависят от конкретной даты и не изменяются при создании
     или отмене бронирований.
@@ -43,6 +43,7 @@ class Slot(Base):
         nullable=True,
     )
 
+    # TODO (#85): Убрать lazy='selectin' и явную загружать через options
     cafe: Mapped['Cafe'] = relationship(
         'Cafe',
         back_populates='slots',
@@ -72,4 +73,4 @@ class Slot(Base):
         )
 
     def __str__(self) -> str:
-        return f'Слот - {self.id} в кафе - {self.cafe_id}'
+        return f'Временной слот {self.id} в кафе {self.cafe_id}'
