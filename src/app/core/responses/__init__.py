@@ -1,3 +1,4 @@
+from .auth import AUTH_VALIDATION_ERROR_RESPONSE
 from .common import (
     BAD_REQUEST_RESPONSE,
     CONFLICT_RESPONSE,
@@ -16,6 +17,7 @@ from .media import (
 from .user import USER_CONFLICT_RESPONSE
 
 __all__ = [
+    'AUTH_VALIDATION_ERROR_RESPONSE',
     'BAD_REQUEST_RESPONSE',
     'CONFLICT_RESPONSE',
     'CREATED_RESPONSE',

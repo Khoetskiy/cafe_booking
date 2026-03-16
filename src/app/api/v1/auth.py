@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_async_session
+from app.core.responses import AUTH_VALIDATION_ERROR_RESPONSE, OK_RESPONSE
 from app.schemas import AuthData, AuthToken
-from app.schemas.error import ErrorResponse
 from app.services.auth import authenticate_user
 from app.services.token import create_access_token
 
@@ -18,10 +18,8 @@ router = APIRouter()
     summary='Получение токена авторизации',
     description='Возвращает токен для последующей авторизации пользователя.',
     responses={
-        422: {
-            'model': ErrorResponse,
-            'description': 'Неверные имя пользователя или пароль',
-        },
+        **OK_RESPONSE,
+        **AUTH_VALIDATION_ERROR_RESPONSE,
     },
 )
 async def login(
@@ -30,20 +28,20 @@ async def login(
 ) -> AuthToken:
     """Аутентифицирует пользователя и возвращает access-токен.
 
-    Endpoint принимает логин (email или телефон) и пароль,
-    проверяет корректность учетных данных и, в случае успеха,
+    Принимает логин (email или телефон) и пароль,
+    проверяет корректность учетных данных и при успешной проверке
     возвращает JWT-токен для последующих авторизованных запросов.
 
     Args:
         data: Данные для авторизации (логин и пароль).
-        session: Асинхронная сессия базы данных.
+        session: Асинхронная сессия SQLAlchemy.
 
     Returns:
         Объект AuthToken с access-токеном и типом токена.
 
     Raises:
-        HTTPException: 401, если логин или пароль неверны.
-
+        HTTPException:
+            - 401: Если логин или пароль неверны.
     """
     user = await authenticate_user(
         login=data.login,
