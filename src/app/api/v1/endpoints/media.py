@@ -11,6 +11,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse
 
+from app.api.dependencies import current_active_user, current_admin_or_manager
 from app.core.responses import (
     BAD_REQUEST_RESPONSE,
     FORBIDDEN_RESPONSE,
@@ -22,7 +23,6 @@ from app.core.responses import (
     VALIDATION_ERROR_RESPONSE,
 )
 from app.schemas.media import MediaInfo
-from app.services.auth import current_active_user, current_admin_or_manager
 from app.services.media import media_service
 
 router = APIRouter()
