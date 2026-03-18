@@ -127,10 +127,12 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    credentials: HTTPAuthorizationCredentials | None = Depends(
-        optional_bearer_scheme,
-    ),
-    session: AsyncSession = Depends(get_async_session),
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(optional_bearer_scheme),
+    ],
+    *,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> User | None:
     """Возвращает текущего пользователя, если токен передан.
 
@@ -148,7 +150,7 @@ async def get_current_user_optional(
         session: Асинхронная сессия базы данных.
 
     Returns:
-        Пользователь, соответствующий токену, либо None.
+        Пользователь, которому соответствует токен, либо None.
 
     Raises:
         HTTPException: 401, если токен передан, но невалиден
@@ -213,7 +215,9 @@ def require_roles(*roles: UserRole) -> Callable[..., User]:
 
     """
 
-    def dependency(user: User = Depends(get_current_active_user)) -> User:
+    def dependency(
+        user: Annotated[User, Depends(get_current_active_user)],
+    ) -> User:
         if user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -225,7 +229,10 @@ def require_roles(*roles: UserRole) -> Callable[..., User]:
 
 
 async def can_create_user(
-    current_user: User | None = Depends(get_current_user_optional),
+    current_user: Annotated[
+        User | None,
+        Depends(get_current_user_optional),
+    ],
 ) -> User | None:
     """Проверяет право на создание нового пользователя.
 
@@ -261,4 +268,3 @@ async def can_create_user(
 current_active_user = get_current_active_user
 current_admin = require_roles(UserRole.ADMIN)
 current_admin_or_manager = require_roles(UserRole.ADMIN, UserRole.MANAGER)
-can_create_user = can_create_user

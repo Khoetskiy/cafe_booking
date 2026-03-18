@@ -1,9 +1,6 @@
-from typing import Annotated
+from fastapi import APIRouter, HTTPException, status
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.db import get_async_session
+from app.api.dependencies import DbSession
 from app.core.responses import AUTH_VALIDATION_ERROR_RESPONSE, OK_RESPONSE
 from app.schemas import AuthData, AuthToken
 from app.services.auth import authenticate_user
@@ -24,7 +21,7 @@ router = APIRouter()
 )
 async def login(
     data: AuthData,
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    session: DbSession,
 ) -> AuthToken:
     """Аутентифицирует пользователя и возвращает access-токен.
 

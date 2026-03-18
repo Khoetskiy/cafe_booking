@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, Path, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from app.core.db import get_async_session
+from fastapi import APIRouter, Path, Query, status
+
+from app.api.dependencies import (
+    CurrentActiveUser,
+    CurrentAdminOrManager,
+    DbSession,
+)
 from app.core.responses import (
     CONFLICT_RESPONSE,
     CREATED_RESPONSE,
@@ -11,9 +16,7 @@ from app.core.responses import (
     UNAUTHORIZED_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
 )
-from app.models import User
 from app.schemas import TimeSlotCreate, TimeSlotInfo, TimeSlotUpdate
-from app.services.auth import current_active_user, current_admin_or_manager
 from app.services.slot import slot_service
 
 router = APIRouter()
@@ -42,16 +45,19 @@ router = APIRouter()
     },
 )
 async def get_time_slots_list(
-    cafe_id: int = Path(..., description='ID кафе'),
-    show_all: bool = Query(
-        default=False,
-        description=(
-            'Показывать все слоты, включая неактивные. '
-            'По умолчанию показывает только активные слоты.'
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    show_all: Annotated[
+        bool,
+        Query(
+            description=(
+                'Показывать все слоты, включая неактивные. '
+                'По умолчанию показывает только активные слоты.'
+            )
         ),
-    ),
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    ] = False,
+    *,
+    user: CurrentActiveUser,
+    session: DbSession,
 ) -> list[TimeSlotInfo]:
     """Возвращает список слотов в указанном кафе.
 
@@ -97,11 +103,10 @@ async def get_time_slots_list(
     },
 )
 async def create_time_slot(
-    cafe_id: int = Path(..., description='ID кафе'),
-    *,
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
     slot_in: TimeSlotCreate,
-    user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> TimeSlotInfo:
     """Создание нового временного слота в кафе.
 
@@ -163,10 +168,10 @@ async def create_time_slot(
     },
 )
 async def get_time_slot_by_id(
-    cafe_id: int = Path(..., description='ID кафе'),
-    slot_id: int = Path(..., description='ID слота'),
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    slot_id: Annotated[int, Path(description='ID слота', ge=1)],
+    user: CurrentActiveUser,
+    session: DbSession,
 ) -> TimeSlotInfo:
     """Возвращает информацию о временном слоте по его идентификатору.
 
@@ -219,12 +224,11 @@ async def get_time_slot_by_id(
     },
 )
 async def update_time_slot(
-    cafe_id: int = Path(..., description='ID кафе'),
-    slot_id: int = Path(..., description='ID слота'),
-    *,
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    slot_id: Annotated[int, Path(description='ID слота', ge=1)],
     slot_in: TimeSlotUpdate,
-    user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> TimeSlotInfo:
     """Обновляет данные временного слота по его идентификатору.
 
@@ -286,10 +290,10 @@ async def update_time_slot(
     },
 )
 async def deactivate_time_slot(
-    cafe_id: int = Path(..., description='ID кафе'),
-    slot_id: int = Path(..., description='ID слота'),
-    user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    slot_id: Annotated[int, Path(description='ID слота', ge=1)],
+    user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> TimeSlotInfo:
     """Деактивирует временной слот по ID.
 

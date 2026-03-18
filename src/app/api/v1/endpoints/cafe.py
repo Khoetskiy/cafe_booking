@@ -1,7 +1,13 @@
-from fastapi import APIRouter, Depends, Path, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from app.core.db import get_async_session
+from fastapi import APIRouter, Path, Query, status
+
+from app.api.dependencies import (
+    CurrentActiveUser,
+    CurrentAdmin,
+    CurrentAdminOrManager,
+    DbSession,
+)
 from app.core.responses import (
     BAD_REQUEST_RESPONSE,
     CONFLICT_RESPONSE,
@@ -12,13 +18,7 @@ from app.core.responses import (
     UNAUTHORIZED_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
 )
-from app.models import User
 from app.schemas import CafeCreate, CafeInfo, CafeUpdate
-from app.services.auth import (
-    current_active_user,
-    current_admin,
-    current_admin_or_manager,
-)
 from app.services.cafe import cafe_service
 
 router = APIRouter()
@@ -41,15 +41,18 @@ router = APIRouter()
     },
 )
 async def get_cafes_list(
-    user: User = Depends(current_active_user),
-    show_all: bool = Query(
-        False,
-        description=(
-            'Показывать все кафе или нет. '
-            'По умолчанию показывает только активные кафе'
+    user: CurrentActiveUser,
+    show_all: Annotated[
+        bool,
+        Query(
+            description=(
+                'Показывать все кафе или нет. '
+                'По умолчанию показывает только активные кафе'
+            )
         ),
-    ),
-    session: AsyncSession = Depends(get_async_session),
+    ] = False,
+    *,
+    session: DbSession,
 ) -> list[CafeInfo]:
     """Возвращает список кафе, доступных текущему пользователю.
 
@@ -85,8 +88,9 @@ async def get_cafes_list(
 )
 async def create_cafe(
     cafe_in: CafeCreate,
-    user: User = Depends(current_admin),
-    session: AsyncSession = Depends(get_async_session),
+    *,
+    user: CurrentAdmin,
+    session: DbSession,
 ) -> CafeInfo:
     """Создаёт новое кафе и назначает менеджеров.
 
@@ -133,9 +137,9 @@ async def create_cafe(
     },
 )
 async def get_cafe_by_id(
-    cafe_id: int = Path(..., description='ID кафе'),
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    user: CurrentActiveUser,
+    session: DbSession,
 ) -> CafeInfo:
     """Возвращает кафе по ID, если пользователь имеет доступ.
 
@@ -172,11 +176,10 @@ async def get_cafe_by_id(
     },
 )
 async def update_cafe(
-    cafe_id: int = Path(..., description='ID кафе'),
-    *,
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
     cafe_in: CafeUpdate,
-    user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> CafeInfo:
     """Частично обновляет информацию о кафе по его ID.
 
@@ -224,9 +227,9 @@ async def update_cafe(
     },
 )
 async def deactivate_cafe(
-    cafe_id: int = Path(..., description='ID кафе'),
-    user: User = Depends(current_admin),
-    session: AsyncSession = Depends(get_async_session),
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    user: CurrentAdmin,
+    session: DbSession,
 ) -> CafeInfo:
     """Деактивирует кафе по ID.
 

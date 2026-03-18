@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import (
@@ -43,11 +44,10 @@ router = APIRouter()
     ),
 )
 async def get_image(
-    media_id: UUID = Path(
-        ...,
-        title='Media ID',
-        description='ID изображения',
-    ),
+    media_id: Annotated[
+        UUID,
+        Path(title='Media ID', description='ID изображения'),
+    ],
 ) -> FileResponse:
     """Получить изображение по его идентификатору.
 
@@ -82,10 +82,7 @@ async def get_image(
     },
 )
 async def upload_image(
-    file: UploadFile = File(
-        ...,
-        description='Загружаемый файл',
-    ),
+    file: Annotated[UploadFile, File(description='Загружаемый файл')],
 ) -> MediaInfo:
     """Загрузить изображение.
 

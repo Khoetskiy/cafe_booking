@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, Path, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from app.core.db import get_async_session
+from fastapi import APIRouter, Path, Query, status
+
+from app.api.dependencies import (
+    CurrentActiveUser,
+    CurrentAdminOrManager,
+    DbSession,
+)
 from app.core.responses import (
     CONFLICT_RESPONSE,
     CREATED_RESPONSE,
@@ -11,9 +16,7 @@ from app.core.responses import (
     UNAUTHORIZED_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
 )
-from app.models import User
 from app.schemas import TableCreate, TableInfo, TableUpdate
-from app.services.auth import current_active_user, current_admin_or_manager
 from app.services.table import table_service
 
 router = APIRouter()
@@ -42,16 +45,19 @@ router = APIRouter()
     },
 )
 async def get_tables_list(
-    cafe_id: int = Path(..., description='ID кафе'),
-    show_all: bool = Query(
-        default=False,
-        description=(
-            'Показывать все столы, включая неактивные. '
-            'По умолчанию показывает только активные столы.'
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    show_all: Annotated[
+        bool,
+        Query(
+            description=(
+                'Показывать все столы, включая неактивные. '
+                'По умолчанию показывает только активные столы.'
+            )
         ),
-    ),
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    ] = False,
+    *,
+    user: CurrentActiveUser,
+    session: DbSession,
 ) -> list[TableInfo]:
     """Возвращает список столов в указанном кафе.
 
@@ -102,11 +108,10 @@ async def get_tables_list(
     ),
 )
 async def create_table(
-    cafe_id: int = Path(..., description='ID кафе'),
-    *,
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
     table_in: TableCreate,
-    user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> TableInfo:
     """Создает новый стол в указанном кафе.
 
@@ -170,10 +175,10 @@ async def create_table(
     },
 )
 async def get_table_by_id(
-    cafe_id: int = Path(..., description='ID кафе'),
-    table_id: int = Path(..., description='ID стола'),
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    table_id: Annotated[int, Path(description='ID стола', ge=1)],
+    user: CurrentActiveUser,
+    session: DbSession,
 ) -> TableInfo:
     """Возвращает информацию о столе по его идентификатору.
 
@@ -226,12 +231,11 @@ async def get_table_by_id(
     },
 )
 async def update_table(
-    cafe_id: int = Path(..., description='ID кафе'),
-    table_id: int = Path(..., description='ID стола'),
-    *,
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    table_id: Annotated[int, Path(description='ID стола', ge=1)],
     table_in: TableUpdate,
-    user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> TableInfo:
     """Обновляет данные стола по его идентификатору.
 
@@ -291,10 +295,10 @@ async def update_table(
     },
 )
 async def deactivate_table(
-    cafe_id: int = Path(..., description='ID кафе'),
-    table_id: int = Path(..., description='ID стола'),
-    user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    table_id: Annotated[int, Path(description='ID стола', ge=1)],
+    user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> TableInfo:
     """Деактивирует стол по ID.
 
