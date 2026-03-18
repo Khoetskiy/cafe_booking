@@ -42,7 +42,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         Returns:
             Объект модели или None, если объект не найден.
-
         """
         stmt = select(self.model).where(self.model.id == obj_id)
         result = await session.execute(stmt)
@@ -147,7 +146,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         Returns:
             Созданный объект модели.
-
         """
         data = self._extract_data(obj_in)
         model_fields = self._get_model_fields()
@@ -195,7 +193,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         Returns:
             Обновлённый объект модели.
-
         """
         update_data = self._extract_data(obj_in)
         model_fields = self._get_model_fields()
@@ -233,7 +230,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         Returns:
             Обновлённый объект.
-
         """
         db_obj.is_active = False
         await session.commit()
@@ -298,7 +294,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         Raises:
             ValueError: Если указано несуществующее поле связи.
-
         """
         valid_relationships = self.model.__mapper__.relationships.keys()
         for attr, objs in related.items():
@@ -342,10 +337,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         Raises:
             ValueError:
-            - если поле не существует
-            - если операция не поддерживается
-            - если value некорректен для операции
-
+                - Если поле не существует.
+                - Если операция не поддерживается.
+                - Если value некорректен для операции.
         """
         field = condition.get('field')
         op = condition.get('op')

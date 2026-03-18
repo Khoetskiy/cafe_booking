@@ -55,8 +55,8 @@ async def get_users_list(
         Список объектов User.
 
     Raises:
-        HTTPException(403): Если у пользователя нет прав.
-
+        HTTPException:
+            - 403: Если у пользователя нет прав.
     """
     return await user_service.get_users_list(
         current_user=current_user,
@@ -111,10 +111,9 @@ async def create_user(
 
     Raises:
         HTTPException:
-            - 403: если недостаточно прав для создания пользователя;
-            - 409: если пользователь с такими данными уже существует;
-            - 422: если данные не прошли валидацию.
-
+            - 403: Если недостаточно прав для создания пользователя.
+            - 409: Если пользователь с такими данными уже существует.
+            - 422: Если данные не прошли валидацию.
     """
     return await user_service.create_user(
         user_in=user_in,
@@ -146,8 +145,8 @@ async def get_me(current_user: CurrentActiveUser) -> UserInfo:
         Информация о текущем пользователе.
 
     Raises:
-        HTTPException(401): Если пользователь не авторизован.
-
+        HTTPException:
+            - 401: Если пользователь не авторизован.
     """
     return await user_service.get_me(current_user)
 
@@ -194,9 +193,8 @@ async def update_me(
 
     Raises:
         HTTPException:
-            - 401: если пользователь не авторизован;
-            - 409: если нарушена уникальность данных.
-
+            - 401: Если пользователь не авторизован.
+            - 409: Если нарушена уникальность данных.
     """
     return await user_service.update_me(
         user_in=user_in,
@@ -240,10 +238,9 @@ async def get_user_by_id(
 
     Raises:
         HTTPException:
-            - 401: если пользователь не авторизован.
-            - 403: если у пользователя нет прав;
-            - 404: если пользователь не найден.
-
+            - 401: Если пользователь не авторизован.
+            - 403: если у пользователя нет прав.
+            - 404: Если пользователь не найден.
     """
     return await user_service.get_user_by_id(
         user_id=user_id,
@@ -290,11 +287,10 @@ async def update_user(
 
     Raises:
         HTTPException:
-            - 401: если пользователь не авторизован;
-            - 403: если у пользователя недостаточно прав;
-            - 404: если пользователь не найден;
-            - 409: если нарушена уникальность данных.
-
+            - 401: Если пользователь не авторизован.
+            - 403: Если у пользователя недостаточно прав.
+            - 404: Если пользователь не найден.
+            - 409: Если нарушена уникальность данных.
     """
     return await user_service.update_user(
         user_id=user_id,
@@ -340,8 +336,10 @@ async def deactivate_user(
         Объект с обновленной информацией о пользователя.
 
     Raises:
-        HTTPException: Если пользователь не найден или уже деактивирован.
-
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если пользователь не найден.
+            - 409: Если пользователь уже деактивирован.
     """
     return await user_service.deactivate_user(
         user_id=user_id,

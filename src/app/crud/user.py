@@ -34,7 +34,6 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
         Returns:
             Пользователь или None, если запись не найдена.
-
         """
         stmt = select(User).where(field == value)
         result = await session.execute(stmt)
@@ -86,7 +85,6 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         Returns:
             Список пользователей с ролью MANAGER, чьи ID присутствуют
             в переданном списке.
-
         """
         if not manager_ids:
             return []

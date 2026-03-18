@@ -25,8 +25,8 @@ async def get_cafe_or_404(
         Объект Cafe.
 
     Raises:
-        HTTPException: Если кафе не найдено.
-
+        HTTPException:
+            - 404: Если кафе не найдено.
     """
     cafe = await cafe_crud.get_by_id(cafe_id, session)
 
@@ -53,7 +53,6 @@ def can_manage_cafe(user: User, cafe_id: int) -> bool:
     Returns:
         True, если пользователь является менеджером данного кафе.
         False — в противном случае.
-
     """
     return user.role == UserRole.MANAGER and user.cafe_id == cafe_id
 
@@ -68,8 +67,8 @@ def ensure_cafe_is_active(cafe: Cafe) -> None:
         cafe: Объект Cafe.
 
     Raises:
-        HTTPException: Если кафе неактивно.
-
+        HTTPException:
+            - 403: Если кафе неактивно.
     """
     if not cafe.is_active:
         raise HTTPException(
@@ -116,10 +115,8 @@ class CafeService:
 
         Raises:
             HTTPException:
-                - 403: если доступ запрещён;
-                - 404: если кафе не найдено.
-
-
+                - 403: Если доступ запрещён.
+                - 404: Если кафе не найдено.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -162,7 +159,6 @@ class CafeService:
 
         Returns:
             Список объектов Cafe.
-
         """
         logger.info(
             'Запрос списка кафе (role=%s, show_all=%s)',
@@ -226,7 +222,6 @@ class CafeService:
 
         Returns:
             Созданный объект Cafe с назначенными менеджерами.
-
         """
         self._ensure_admin_permission(user)
 
@@ -293,10 +288,9 @@ class CafeService:
 
         Raises:
             HTTPException:
-                - 403: если менеджер не относится к данному кафе;
-                - 404: если кафе не найдено;
-                - 400 / 409: если нарушены бизнес-правила.
-
+                - 403: Если менеджер не относится к данному кафе.
+                - 404: Если кафе не найдено.
+                - 400 / 409: Если нарушены бизнес-правила.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -365,10 +359,9 @@ class CafeService:
 
         Raises:
             HTTPException:
-                - 403: если недостаточно прав;
-                - 404: если кафе не найдено;
-                - 409: если кафе уже деактивировано.
-
+                - 403: Если недостаточно прав.
+                - 404: Если кафе не найдено.
+                - 409: Если кафе уже деактивировано.
         """
         self._ensure_admin_permission(user)
 
@@ -419,10 +412,9 @@ class CafeService:
 
         Raises:
             HTTPException:
-                - 400: если один или несколько пользователей не существуют,
+                - 400: Если один или несколько пользователей не существуют,
                                                 или не являются менеджерами;
-                - 409: если менеджер уже привязан к другому кафе.
-
+                - 409: Если менеджер уже привязан к другому кафе.
         """
         managers: list[User] = await user_crud.get_managers_by_ids(
             managers_id,
@@ -530,8 +522,8 @@ class CafeService:
             session: Асинхронная сессия SQLAlchemy.
 
         Raises:
-            HTTPException: Если кафе с таким названием и адресом уже существует
-
+            HTTPException:
+                - 409: Если кафе с таким названием и адресом уже существует.
         """
         cafe = await cafe_crud.get_by_name_and_address(
             name=name,
@@ -552,7 +544,8 @@ class CafeService:
             user: Текущий пользователь.
 
         Raises:
-            HTTPException: Если у пользователя нет прав администратора.
+            HTTPException:
+                - 403: Если у пользователя нет прав администратора.
         """
         if user.role != UserRole.ADMIN:
             raise HTTPException(

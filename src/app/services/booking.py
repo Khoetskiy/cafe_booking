@@ -499,8 +499,8 @@ class BookingService:
 
         Raises:
             HTTPException:
-                - 404: Если бронирование не найдено.
                 - 403: Если у пользователя нет прав.
+                - 404: Если бронирование не найдено.
                 - 409: Если бронирование уже деактивировано.
         """
         booking = await self._get_booking_or_404(booking_id, session)
@@ -551,7 +551,8 @@ class BookingService:
             Объект Booking.
 
         Raises:
-            HTTPException(404): Если бронирование не найдено.
+            HTTPException:
+                - 404: Если бронирование не найдено.
         """
         booking = await booking_crud.get_by_id(
             obj_id=booking_id,
@@ -644,7 +645,8 @@ class BookingService:
             booking_date: Дата, которую пользователь пытается забронировать.
 
         Raises:
-            HTTPException: Если дата бронирования меньше текущей даты.
+            HTTPException:
+                - 400: Если дата бронирования меньше текущей даты.
         """
         if booking_date < date.today():
             raise HTTPException(
@@ -665,7 +667,8 @@ class BookingService:
             tables_slots: Список связок стол–слот из запроса.
 
         Raises:
-            HTTPException: Если одна и та же пара передана более одного раза.
+            HTTPException:
+                - 400: Если одна и та же пара передана более одного раза.
         """
         pairs = [
             (table_slot.table_id, table_slot.slot_id)
@@ -697,10 +700,11 @@ class BookingService:
             session: Асинхронная сессия SQLAlchemy.
 
         Raises:
-            HTTPException: Если хотя бы один слот не существует,
-                                неактивен или не принадлежит кафе.
-            HTTPException: Если хотя бы один стол не существует,
-                                неактивен или не принадлежит кафе.
+            HTTPException:
+                - 400: Если хотя бы один слот не существует,
+                            неактивен или не принадлежит кафе.
+                - 400: Если хотя бы один стол не существует,
+                            неактивен или не принадлежит кафе.
         """
         table_ids, slot_ids = self._extract_table_and_slot_ids(tables_slots)
 
@@ -766,7 +770,7 @@ class BookingService:
             session: Асинхронная сессия SQLAlchemy.
 
         Raises:
-            409: Если найдено хотя бы одно конфликтующее бронирование.
+            - 409: Если найдено хотя бы одно конфликтующее бронирование.
         """
         table_ids, slot_ids = self._extract_table_and_slot_ids(tables_slots)
 

@@ -64,7 +64,6 @@ async def get_cafes_list(
 
     Returns:
         Список объектов CafeInfo.
-
     """
     return await cafe_service.get_cafes_list(show_all, user, session)
 
@@ -109,10 +108,9 @@ async def create_cafe(
 
     Raises:
         HTTPException:
-            - 400: если входные данные невалидны;
-            - 403: если пользователь не является администратором;
-            - 409: если кафе с таким названием и адресом уже существует.
-
+            - 400: Если входные данные невалидны.
+            - 403: Если пользователь не является администратором.
+            - 409: Если кафе с таким названием и адресом уже существует.
     """
     return await cafe_service.create_cafe(cafe_in, user, session)
 
@@ -150,7 +148,6 @@ async def get_cafe_by_id(
 
     Returns:
         Объект CafeInfo.
-
     """
     return await cafe_service.get_cafe_by_id(cafe_id, user, session)
 
@@ -200,10 +197,9 @@ async def update_cafe(
 
     Raises:
         HTTPException:
-            - 401: если пользователь не аутентифицирован;
-            - 403: если у пользователя нет доступа;
-            - 404: если кафе не найдено.
-
+            - 401: Если пользователь не аутентифицирован.
+            - 403: Если у пользователя нет доступа.
+            - 404: Если кафе не найдено.
     """
     return await cafe_service.update_cafe(cafe_id, cafe_in, user, session)
 
@@ -242,8 +238,10 @@ async def deactivate_cafe(
         Объект с обновленной информацией о кафе.
 
     Raises:
-        HTTPException: Если кафе не найдено или уже деактивировано.
-
+        HTTPException:
+            - 403: Если недостаточно прав.
+            - 404: Если кафе не найдено.
+            - 409: Если кафе уже деактивировано.
     """
     return await cafe_service.deactivate_cafe(
         cafe_id=cafe_id,
