@@ -2,9 +2,9 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencies import DbSession
 from app.core.responses import AUTH_VALIDATION_ERROR_RESPONSE, OK_RESPONSE
+from app.core.security.jwt import create_access_token
 from app.schemas import AuthData, AuthToken
 from app.services.auth import authenticate_user
-from app.services.token import create_access_token
 
 router = APIRouter()
 

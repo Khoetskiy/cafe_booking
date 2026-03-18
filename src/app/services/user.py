@@ -3,7 +3,7 @@ import logging
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_password_hash
+from app.core.security.passwords import get_password_hash
 from app.crud import user_crud
 from app.models import User, UserRole
 from app.schemas import UserCreate, UserUpdate, UserUpdateMe
