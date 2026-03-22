@@ -31,13 +31,11 @@ class User(Base):
     username: Mapped[str] = mapped_column(
         String(MAX_LENGTH_USER_USERNAME),
         unique=True,
-        index=True,
         nullable=False,
     )
     email: Mapped[str | None] = mapped_column(
         String(MAX_LENGTH_USER_EMAIL),
         unique=True,
-        index=True,
         nullable=True,
     )
     phone: Mapped[str | None] = mapped_column(
