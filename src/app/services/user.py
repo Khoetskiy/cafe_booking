@@ -3,7 +3,7 @@ import logging
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_password_hash
+from app.core.security.passwords import get_password_hash
 from app.crud import user_crud
 from app.models import User, UserRole
 from app.schemas import UserCreate, UserUpdate, UserUpdateMe
@@ -27,8 +27,8 @@ async def get_user_or_404(
         Объект User.
 
     Raises:
-        HTTPException(404): Если пользователь не найден.
-
+        HTTPException:
+            - 404: Если пользователь не найден.
     """
     user = await user_crud.get_by_id(user_id, session)
 
@@ -78,9 +78,8 @@ class UserService:
 
         Raises:
             HTTPException:
-                - 403, если у пользователя нет прав;
-                - 404, если пользователь не найден.
-
+                - 403: Если у пользователя нет прав.
+                - 404: Если пользователь не найден.
         """
         self._ensure_manage_permission(current_user)
 
@@ -111,8 +110,8 @@ class UserService:
             Список объектов `User`.
 
         Raises:
-            HTTPException(403): Если у пользователя нет прав.
-
+            HTTPException:
+                - 403: Если у пользователя нет прав.
         """
         log_extra = self._build_log_extra(current_user)
         logger.info(
@@ -142,7 +141,6 @@ class UserService:
 
         Returns:
             Объект User.
-
         """
         logger.info(
             'Получен текущий пользователь: %s',
@@ -189,10 +187,9 @@ class UserService:
 
         Raises:
             HTTPException:
-                - 403: недостаточно прав для создания пользователя;
-                - 409: пользователь с такими данными уже существует;
-                - 422: не указан email и номер телефона.
-
+                - 403: Недостаточно прав для создания пользователя.
+                - 409: Пользователь с такими данными уже существует.
+                - 422: Не указан email и номер телефона.
         """
         self._ensure_can_create_user(current_user)
 
@@ -253,10 +250,9 @@ class UserService:
 
         Raises:
             HTTPException:
-                - 403: если недостаточно прав;
-                - 404: если пользователь не найден;
-                - 409: если нарушена уникальность данных.
-
+                - 403: Если недостаточно прав.
+                - 404: Если пользователь не найден.
+                - 409: Если нарушена уникальность данных.
         """
         self._ensure_manage_permission(current_user)
 
@@ -322,8 +318,8 @@ class UserService:
             Обновлённый пользователь.
 
         Raises:
-            HTTPException(409): Если нарушена уникальность данных.
-
+            HTTPException
+                - 409: Если нарушена уникальность данных.
         """
         await self._check_user_uniqueness(
             user_in=user_in,
@@ -369,10 +365,9 @@ class UserService:
 
         Raises:
             HTTPException:
-                - 403, если у пользователя нет прав;
-                - 404, если пользователь не найден.
-                - 409, если пользователь уже деактивирован.
-
+                - 403: Если у пользователя нет прав.
+                - 404: Если пользователь не найден.
+                - 409: Если пользователь уже деактивирован.
         """
         if current_user.role != UserRole.ADMIN:
             raise HTTPException(
@@ -412,9 +407,9 @@ class UserService:
             current_user: Пользователь, инициировавший операцию либо None.
 
         Raises:
-            HTTPException(403): Если авторизованный пользователь
-                    не имеет прав на создание нового пользователя.
-
+            HTTPException
+                - 403: Если авторизованный пользователь не имеет прав
+                                        на создание нового пользователя.
         """
         if current_user is None:
             return
@@ -438,8 +433,8 @@ class UserService:
             user: Текущий пользователь.
 
         Raises:
-            HTTPException(403): Если у пользователя недостаточно прав.
-
+            HTTPException:
+                - 403: Если у пользователя недостаточно прав.
         """
         if user.role not in {UserRole.ADMIN, UserRole.MANAGER}:
             raise HTTPException(
@@ -459,8 +454,8 @@ class UserService:
             user_in: Данные для создания пользователя.
 
         Raises:
-            HTTPException(422): Если не указан ни email, ни phone.
-
+            HTTPException:
+                - 422: Если не указан ни email, ни phone.
         """
         if not user_in.email and not user_in.phone:
             logger.warning(
@@ -495,8 +490,8 @@ class UserService:
             session: Асинхронная сессия SQLAlchemy.
 
         Raises:
-            HTTPException(409): Если найден конфликт уникальных данных.
-
+            HTTPException:
+                - 409: Если найден конфликт уникальных данных.
         """
         if user_in.username:
             user = await user_crud.get_by_username(
@@ -575,7 +570,6 @@ class UserService:
 
         Returns:
             Словарь с подготовленными данными.
-
         """
         data = user_in.model_dump(exclude={'password'})
         data['password_hash'] = get_password_hash(user_in.password)
@@ -593,7 +587,6 @@ class UserService:
 
         Returns:
             Словарь обновляемых данных.
-
         """
         data = user_in.model_dump(
             exclude_unset=True,
@@ -613,7 +606,6 @@ class UserService:
 
         Returns:
             Словарь с информацией о пользователе или None.
-
         """
         if not user:
             return None

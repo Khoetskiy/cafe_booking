@@ -26,7 +26,6 @@ def _create_jwt(
 
     Returns:
         JWT в виде строки.
-
     """
     to_encode = dict(payload)
 
@@ -57,7 +56,6 @@ def _decode_jwt(token: str) -> Mapping[str, Any]:
 
     Raises:
         InvalidTokenError: Если токен невалиден или истёк.
-
     """
     return jwt.decode(
         jwt=token,
@@ -81,7 +79,6 @@ def create_access_token(user: User) -> str:
 
     Returns:
         JWT access-токен в виде строки.
-
     """
     expires = timedelta(minutes=settings.access_token_expire_minutes)
     return _create_jwt(

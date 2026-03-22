@@ -42,7 +42,6 @@ class CRUDBooking(CRUDBase[Booking, BookingCreate, BookingUpdate]):
 
         Returns:
             Список конфликтующих объектов Booking.
-
         """
         stmt = (
             select(Booking)

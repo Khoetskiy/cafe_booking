@@ -101,7 +101,6 @@ def _format_validation_field_path(loc: list) -> str:
 
     Returns:
         Отформатированный путь к полю
-
     """
     if not loc:
         return 'unknown'

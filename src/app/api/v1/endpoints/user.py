@@ -1,7 +1,14 @@
-from fastapi import APIRouter, Depends, Path, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from app.core.db import get_async_session
+from fastapi import APIRouter, Path, status
+
+from app.api.dependencies import (
+    CurrentActiveUser,
+    CurrentAdmin,
+    CurrentAdminOrManager,
+    DbSession,
+    UserCreator,
+)
 from app.core.responses import (
     CONFLICT_RESPONSE,
     CREATED_RESPONSE,
@@ -12,14 +19,7 @@ from app.core.responses import (
     USER_CONFLICT_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
 )
-from app.models import User
 from app.schemas import UserCreate, UserInfo, UserUpdate, UserUpdateMe
-from app.services.auth import (
-    can_create_user,
-    current_active_user,
-    current_admin,
-    current_admin_or_manager,
-)
 from app.services.user import user_service
 
 router = APIRouter()
@@ -40,8 +40,8 @@ router = APIRouter()
     },
 )
 async def get_users_list(
-    current_user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    current_user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> list[UserInfo]:
     """Возвращает список пользователей.
 
@@ -55,8 +55,8 @@ async def get_users_list(
         Список объектов User.
 
     Raises:
-        HTTPException(403): Если у пользователя нет прав.
-
+        HTTPException:
+            - 403: Если у пользователя нет прав.
     """
     return await user_service.get_users_list(
         current_user=current_user,
@@ -85,8 +85,9 @@ async def get_users_list(
 )
 async def create_user(
     user_in: UserCreate,
-    current_user: User | None = Depends(can_create_user),
-    session: AsyncSession = Depends(get_async_session),
+    *,
+    current_user: UserCreator,
+    session: DbSession,
 ) -> UserInfo:
     """Создание нового пользователя с учетом прав доступа.
 
@@ -110,10 +111,9 @@ async def create_user(
 
     Raises:
         HTTPException:
-            - 403: если недостаточно прав для создания пользователя;
-            - 409: если пользователь с такими данными уже существует;
-            - 422: если данные не прошли валидацию.
-
+            - 403: Если недостаточно прав для создания пользователя.
+            - 409: Если пользователь с такими данными уже существует.
+            - 422: Если данные не прошли валидацию.
     """
     return await user_service.create_user(
         user_in=user_in,
@@ -135,9 +135,7 @@ async def create_user(
         **UNAUTHORIZED_RESPONSE,
     },
 )
-async def get_me(
-    current_user: User = Depends(current_active_user),
-) -> UserInfo:
+async def get_me(current_user: CurrentActiveUser) -> UserInfo:
     """Возвращает текущего авторизованного пользователя.
 
     Args:
@@ -147,8 +145,8 @@ async def get_me(
         Информация о текущем пользователе.
 
     Raises:
-        HTTPException(401): Если пользователь не авторизован.
-
+        HTTPException:
+            - 401: Если пользователь не авторизован.
     """
     return await user_service.get_me(current_user)
 
@@ -170,8 +168,9 @@ async def get_me(
 )
 async def update_me(
     user_in: UserUpdateMe,
-    current_user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    *,
+    current_user: CurrentActiveUser,
+    session: DbSession,
 ) -> UserInfo:
     """Обновляет данные текущего авторизованного пользователя.
 
@@ -194,9 +193,8 @@ async def update_me(
 
     Raises:
         HTTPException:
-            - 401: если пользователь не авторизован;
-            - 409: если нарушена уникальность данных.
-
+            - 401: Если пользователь не авторизован.
+            - 409: Если нарушена уникальность данных.
     """
     return await user_service.update_me(
         user_in=user_in,
@@ -222,9 +220,9 @@ async def update_me(
     },
 )
 async def get_user_by_id(
-    user_id: int = Path(..., description='ID пользователя'),
-    current_user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    user_id: Annotated[int, Path(description='ID пользователя', ge=1)],
+    current_user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> UserInfo:
     """Возвращает пользователя по его идентификатору.
 
@@ -240,10 +238,9 @@ async def get_user_by_id(
 
     Raises:
         HTTPException:
-            - 401: если пользователь не авторизован.
-            - 403: если у пользователя нет прав;
-            - 404: если пользователь не найден.
-
+            - 401: Если пользователь не авторизован.
+            - 403: если у пользователя нет прав.
+            - 404: Если пользователь не найден.
     """
     return await user_service.get_user_by_id(
         user_id=user_id,
@@ -270,11 +267,10 @@ async def get_user_by_id(
     },
 )
 async def update_user(
-    user_id: int = Path(..., description='ID пользователя'),
-    *,
+    user_id: Annotated[int, Path(description='ID пользователя', ge=1)],
     user_in: UserUpdate,
-    current_user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    current_user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> UserInfo:
     """Обновляет данные пользователя по его идентификатору.
 
@@ -291,11 +287,10 @@ async def update_user(
 
     Raises:
         HTTPException:
-            - 401: если пользователь не авторизован;
-            - 403: если у пользователя недостаточно прав;
-            - 404: если пользователь не найден;
-            - 409: если нарушена уникальность данных.
-
+            - 401: Если пользователь не авторизован.
+            - 403: Если у пользователя недостаточно прав.
+            - 404: Если пользователь не найден.
+            - 409: Если нарушена уникальность данных.
     """
     return await user_service.update_user(
         user_id=user_id,
@@ -324,9 +319,9 @@ async def update_user(
     },
 )
 async def deactivate_user(
-    user_id: int = Path(..., description='ID пользователя'),
-    current_user: User = Depends(current_admin),
-    session: AsyncSession = Depends(get_async_session),
+    user_id: Annotated[int, Path(description='ID пользователя', ge=1)],
+    current_user: CurrentAdmin,
+    session: DbSession,
 ) -> UserInfo:
     """Деактивирует пользователя по ID.
 
@@ -341,8 +336,10 @@ async def deactivate_user(
         Объект с обновленной информацией о пользователя.
 
     Raises:
-        HTTPException: Если пользователь не найден или уже деактивирован.
-
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если пользователь не найден.
+            - 409: Если пользователь уже деактивирован.
     """
     return await user_service.deactivate_user(
         user_id=user_id,

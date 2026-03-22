@@ -27,7 +27,6 @@ class CRUDCafe(CRUDBase[Cafe, CafeCreate, CafeUpdate]):
 
         Returns:
             Список объектов Cafe с `is_active=True`.
-
         """
         return await self.get_multi(
             filters=[
@@ -56,7 +55,6 @@ class CRUDCafe(CRUDBase[Cafe, CafeCreate, CafeUpdate]):
 
         Returns:
             Объект Cafe, если кафе найдено, иначе None.
-
         """
         stmt = select(Cafe).where(
             Cafe.name == name,

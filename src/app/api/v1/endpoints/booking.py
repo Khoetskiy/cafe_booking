@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, Path, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from app.core.db import get_async_session
+from fastapi import APIRouter, Path, Query, status
+
+from app.api.dependencies import (
+    CurrentActiveUser,
+    CurrentAdminOrManager,
+    DbSession,
+)
 from app.core.responses import (
     BAD_REQUEST_RESPONSE,
     CONFLICT_RESPONSE,
@@ -12,9 +17,7 @@ from app.core.responses import (
     UNAUTHORIZED_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
 )
-from app.models import User
 from app.schemas import BookingCreate, BookingInfo, BookingUpdate
-from app.services.auth import current_active_user, current_admin_or_manager
 from app.services.booking import booking_service
 
 router = APIRouter()
@@ -45,30 +48,39 @@ router = APIRouter()
     },
 )
 async def get_management_bookings_list(
-    show_all: bool = Query(
-        False,
-        description=(
-            'Показывать все бронирования или нет. '
-            'По умолчанию показывает только активные бронирования.'
+    show_all: Annotated[
+        bool,
+        Query(
+            description=(
+                'Показывать все бронирования или нет. '
+                'По умолчанию показывает только активные бронирования.'
+            )
         ),
-    ),
-    cafe_id: int | None = Query(
-        None,
-        description=(
-            'ID кафе, в котором показывать бронирования. '
-            'Если не задано — показывает все бронирования во всех кафе '
-            'для администатора, для менеджера только в его кафе.'
+    ] = False,
+    cafe_id: Annotated[
+        int | None,
+        Query(
+            description=(
+                'ID кафе, в котором показывать бронирования. '
+                'Если не задано — показывает все бронирования во всех кафе '
+                'для администратора, для менеджера только в его кафе.'
+            ),
+            ge=1,
         ),
-    ),
-    user_id: int | None = Query(
-        None,
-        description=(
-            'ID пользователя, бронирования которого показывать. '
-            'Если не задано — показывает бронирования всех пользователей.'
+    ] = None,
+    user_id: Annotated[
+        int | None,
+        Query(
+            description=(
+                'ID пользователя, бронирования которого показывать. '
+                'Если не задано — показывает бронирования всех пользователей.'
+            ),
+            ge=1,
         ),
-    ),
-    current_user: User = Depends(current_admin_or_manager),
-    session: AsyncSession = Depends(get_async_session),
+    ] = None,
+    *,
+    current_user: CurrentAdminOrManager,
+    session: DbSession,
 ) -> list[BookingInfo]:
     """Возвращает список бронирований с учетом прав доступа и фильтрации.
 
@@ -124,15 +136,20 @@ async def get_management_bookings_list(
     },
 )
 async def get_my_bookings_list(
-    cafe_id: int | None = Query(
-        None,
-        description=(
-            'ID кафе, в котором показывать бронирования. '
-            'Если не указано — показывает все бронирования во всех кафе.'
+    cafe_id: Annotated[
+        int | None,
+        Query(
+            description=(
+                'ID кафе, в котором показывать бронирования. '
+                'Если не задано — показывает все бронирования во всех кафе '
+                'для администратора, для менеджера только в его кафе.'
+            ),
+            ge=1,
         ),
-    ),
-    current_user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    ] = None,
+    *,
+    current_user: CurrentActiveUser,
+    session: DbSession,
 ) -> list[BookingInfo]:
     """Возвращает список активных бронирований текущего пользователя.
 
@@ -172,8 +189,8 @@ async def get_my_bookings_list(
 )
 async def create_booking(
     booking_in: BookingCreate,
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    user: CurrentActiveUser,
+    session: DbSession,
 ) -> BookingInfo:
     """Создаёт новое бронирование для текущего пользователя.
 
@@ -196,11 +213,10 @@ async def create_booking(
 
     Raises:
         HTTPException:
-            - 400: некорректные данные или несуществующие ресурсы;
-            - 401: пользователь не авторизован;
-            - 409: один или несколько столов уже заняты;
-            - 422: ошибка валидации входных данных.
-
+            - 400: Некорректные данные или несуществующие ресурсы.
+            - 401: Пользователь не авторизован.
+            - 409: Один или несколько столов уже заняты.
+            - 422: Ошибка валидации входных данных.
     """
     return await booking_service.create_booking(
         booking_in=booking_in,
@@ -230,9 +246,15 @@ async def create_booking(
     },
 )
 async def get_booking_by_id(
-    booking_id: int = Path(..., description='ID бронирования'),
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    booking_id: Annotated[
+        int,
+        Path(
+            description='ID бронирования',
+            ge=1,
+        ),
+    ],
+    user: CurrentActiveUser,
+    session: DbSession,
 ) -> BookingInfo:
     """Возвращает информацию о бронировании по его идентификатору.
 
@@ -251,10 +273,9 @@ async def get_booking_by_id(
 
     Raises:
         HTTPException:
-            - 401: пользователь не авторизован;
-            - 404: бронирование не найдено или доступ запрещён;
-            - 422: ошибка валидации входных данных.
-
+            - 401: Пользователь не авторизован.
+            - 404: Бронирование не найдено или доступ запрещён.
+            - 422: Ошибка валидации входных данных.
     """
     return await booking_service.get_booking_by_id(
         booking_id=booking_id,
@@ -285,11 +306,16 @@ async def get_booking_by_id(
     },
 )
 async def update(
-    booking_id: int = Path(..., description='ID бронирования'),
-    *,
+    booking_id: Annotated[
+        int,
+        Path(
+            description='ID бронирования',
+            ge=1,
+        ),
+    ],
     booking_in: BookingUpdate,
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    user: CurrentActiveUser,
+    session: DbSession,
 ) -> BookingInfo:
     """Обновляет бронирование по его идентификатору.
 
@@ -311,13 +337,12 @@ async def update(
 
     Raises:
         HTTPException:
-            - 400: некорректные данные;
-            - 401: пользователь не авторизован;
-            - 403: доступ запрещён;
-            - 404: бронирование не найдено или доступ запрещён;
-            - 409: конфликт бронирований;
-            - 422: ошибка валидации входных данных.
-
+            - 400: Некорректные данные.
+            - 401: Пользователь не авторизован.
+            - 403: Доступ запрещён.
+            - 404: Бронирование не найдено или доступ запрещён.
+            - 409: Конфликт бронирований.
+            - 422: Ошибка валидации входных данных.
     """
     return await booking_service.update_booking(
         booking_id=booking_id,
@@ -346,10 +371,15 @@ async def update(
     },
 )
 async def deactivate_booking(
-    booking_id: int = Path(..., description='ID бронирования'),
-    *,
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
+    booking_id: Annotated[
+        int,
+        Path(
+            description='ID бронирования',
+            ge=1,
+        ),
+    ],
+    user: CurrentActiveUser,
+    session: DbSession,
 ) -> BookingInfo:
     """Деактивирует бронирование по ID.
 
@@ -362,8 +392,10 @@ async def deactivate_booking(
         Объект с обновленной информацией о бронировании.
 
     Raises:
-        HTTPException: Если бронирование не найдено или уже деактивировано.
-
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если бронирование не найдено.
+            - 409: Если бронирование уже деактивировано.
     """
     return await booking_service.deactivate_booking(
         booking_id=booking_id,

@@ -15,7 +15,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True, если пароль совпадает с хешем.
         False, если пароль неверный.
-
     """
     return password_hasher.verify(plain_password, hashed_password)
 
@@ -33,7 +32,6 @@ def get_password_hash(password: str) -> str:
 
     Returns:
         Хеш пароля в виде строки, готовый для сохранения в базе данных.
-
     """
     return password_hasher.hash(password)
 
@@ -56,7 +54,6 @@ def check_password_rules(
     Returns:
         Строку с описанием ошибки, если пароль не прошёл проверку.
         None, если пароль соответствует всем правилам.
-
     """
     if len(password) < MIN_LENGTH_USER_PASSWORD:
         return (

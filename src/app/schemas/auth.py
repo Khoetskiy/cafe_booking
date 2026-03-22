@@ -38,7 +38,6 @@ class AuthData(BaseModel):
 
         Raises:
             ValueError: Если логин не соответствует допустимым форматам.
-
         """
         login = value.strip()
 
