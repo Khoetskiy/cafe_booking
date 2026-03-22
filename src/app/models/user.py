@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, ForeignKey, String
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.constants import (
     MAX_LENGTH_USER_EMAIL,
@@ -12,6 +12,7 @@ from app.core.constants import (
     MAX_LENGTH_USER_USERNAME,
 )
 from app.core.db import Base
+from app.core.security.html import escape_html_field
 from app.models.enum import UserRole
 
 if TYPE_CHECKING:
@@ -68,6 +69,11 @@ class User(Base):
         back_populates='managers',
         lazy='selectin',
     )
+
+    @validates('username')
+    def validate_username(self, key: str, value: str) -> str:
+        """Экранирует поле username для безопасности."""
+        return escape_html_field(value)
 
     __table_args__ = (
         CheckConstraint(

@@ -8,10 +8,11 @@ from sqlalchemy import (
     Time,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.constants import MAX_LENGTH_SLOT_DESCRIPTION
 from app.core.db import Base
+from app.core.security.html import escape_html_field
 
 if TYPE_CHECKING:
     from app.models.cafe import Cafe
@@ -49,6 +50,11 @@ class Slot(Base):
         back_populates='slots',
         lazy='selectin',
     )
+
+    @validates('description')
+    def validate_description(self, key: str, value: str | None) -> str | None:
+        """Экранирует поле description для безопасности."""
+        return escape_html_field(value)
 
     __table_args__ = (
         CheckConstraint(
