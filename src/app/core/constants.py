@@ -9,7 +9,7 @@ DEFAULT_LOCAL_HOST = 'localhost'
 ENV_RUN_IN_DOCKER = 'RUN_IN_DOCKER'
 TRUE_VALUE = 'yes'
 
-# --- Логирование ---
+# --- Logging ---
 LOGS_DIR = Path('logs')
 LOG_FILE = LOGS_DIR / 'app.log'
 LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 МБ
@@ -47,7 +47,7 @@ MAX_LENGTH_CAFE_DESCRIPTION = 2000
 MIN_SEATS_COUNT = 1
 MAX_SEATS_COUNT = 24
 
-# ---Media ---
+# --- Media ---
 MAX_LENGTH_MEDIA_FILEPATH = 2048
 MEDIA_PATH_DISPLAY_LENGTH = 60
 MAX_IMAGE_SIZE_READ = 5
