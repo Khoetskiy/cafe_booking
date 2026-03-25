@@ -13,9 +13,10 @@ from app.core.constants import (
     MIN_LENGTH_CAFE_PHONE,
 )
 from app.schemas.user import UserShortInfo
+from app.schemas.validators import DescriptionValidateMixin
 
 
-class CafeBase(BaseModel):
+class CafeBase(DescriptionValidateMixin):
     """Базовая схема кафе с общими полями сущности."""
 
     name: str = Field(
@@ -59,7 +60,7 @@ class CafeCreate(CafeBase):
     model_config = ConfigDict(extra='forbid')
 
 
-class CafeUpdate(BaseModel):
+class CafeUpdate(DescriptionValidateMixin):
     """Схема для частичного обновления данных кафе."""
 
     name: str | None = Field(

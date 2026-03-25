@@ -1,13 +1,14 @@
 from datetime import datetime, time
 from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from app.core.constants import MAX_LENGTH_SLOT_DESCRIPTION
 from app.schemas.cafe import CafeShortInfo
+from app.schemas.validators import DescriptionValidateMixin
 
 
-class TimeSlotBase(BaseModel):
+class TimeSlotBase(DescriptionValidateMixin):
     """Базовая схема для временного слота."""
 
     start_time: time = Field(
