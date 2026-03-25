@@ -10,7 +10,39 @@ from app.core.constants import (
     MIN_LENGTH_USER_PASSWORD,
     MIN_LENGTH_USER_USERNAME,
 )
+from app.core.security.passwords import validate_password
 from app.models import UserRole
+
+
+class PasswordValidationMixin(BaseModel):
+    """Миксин для валидации и проверки пароля."""
+
+    @model_validator(mode='before')
+    def validate_password(cls, data: dict) -> dict:  # noqa: N805
+        """Валидирует пароль по установленным правилам.
+
+        Проверяет пароль на соответствие требованиям безопасности.
+
+        Args:
+            data: Словарь с данными.
+
+        Returns:
+            dict: Исходный словарь данных если валидация пройдена.
+
+        Raises:
+            ValueError: Если пароль не соответствует правилам валидации.
+        """
+        pwd = data.get('password')
+        if pwd is None:
+            return data
+
+        email = data.get('email')
+        errors = validate_password(pwd, email)
+
+        if errors:
+            raise ValueError('; '.join(errors))
+
+        return data
 
 
 class UserBase(BaseModel):
@@ -38,7 +70,7 @@ class UserBase(BaseModel):
     )
 
 
-class UserCreate(UserBase):
+class UserCreate(UserBase, PasswordValidationMixin):
     """Схема для создания нового пользователя."""
 
     username: str = Field(
@@ -61,7 +93,7 @@ class UserCreate(UserBase):
         return self
 
 
-class UserUpdate(UserBase):
+class UserUpdate(UserBase, PasswordValidationMixin):
     """Схема для обновления данных пользователя."""
 
     role: UserRole | None = Field(
@@ -79,7 +111,7 @@ class UserUpdate(UserBase):
     )
 
 
-class UserUpdateMe(UserBase):
+class UserUpdateMe(UserBase, PasswordValidationMixin):
     """Схема для обновления данных текущего пользователя."""
 
     password: str | None = Field(

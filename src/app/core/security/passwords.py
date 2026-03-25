@@ -1,6 +1,13 @@
-from pwdlib import PasswordHash
+from re import Pattern
 
-from app.core.constants import MIN_LENGTH_USER_PASSWORD, PASSWORD_PATTERN
+from pwdlib import PasswordHash
+from zxcvbn import zxcvbn
+
+from app.core.constants import (
+    MIN_LENGTH_USER_PASSWORD,
+    PASSWORD_ALLOWED_SYMBOLS,
+    PASSWORD_PATTERN,
+)
 
 password_hasher = PasswordHash.recommended()
 
@@ -39,7 +46,9 @@ def get_password_hash(password: str) -> str:
 def check_password_rules(
     password: str,
     email: str | None = None,
-) -> str | None:
+    min_length: int = MIN_LENGTH_USER_PASSWORD,
+    password_pattern: Pattern[str] = PASSWORD_PATTERN,
+) -> list[str] | None:
     """Проверяет пароль на соответствие правилам безопасности.
 
     Проверяются следующие условия:
@@ -50,25 +59,73 @@ def check_password_rules(
     Args:
         password: Пароль в открытом виде.
         email: Email пользователя.
+        min_length: Минимальная длина пароля.
+        password_pattern: re–выражение для проверки допустимых символов.
 
     Returns:
-        Строку с описанием ошибки, если пароль не прошёл проверку.
-        None, если пароль соответствует всем правилам.
+        Список сообщений об ошибках, если есть нарушения, иначе None.
     """
-    if len(password) < MIN_LENGTH_USER_PASSWORD:
-        return (
-            f'Минимальная длина пароля — {MIN_LENGTH_USER_PASSWORD} символов.'
-        )
+    errors: list[str] = []
+
+    if len(password) < min_length:
+        errors.append(f'Минимальная длина пароля — {min_length} символов')
 
     if email:
         email_part = email.split('@', 1)[0].lower()
         if email_part and email_part in password.lower():
-            return 'Пароль не должен содержать email пользователя.'
+            errors.append('Пароль не должен содержать email пользователя')
 
-    if not PASSWORD_PATTERN.fullmatch(password):
-        return (
+    if not any(c.isdigit() for c in password):
+        errors.append('Пароль должен содержать хотя бы одну цифру')
+
+    if not any(c.isascii() and c.isalpha() for c in password):
+        errors.append('Пароль должен содержать хотя бы одну латинскую букву')
+
+    if len(set(password)) < max(4, len(password) // 3):
+        errors.append('Пароль слишком простой (мало уникальных символов)')
+
+    if not password_pattern.fullmatch(password):
+        errors.append(
             'Пароль содержит недопустимые символы. '
-            'Разрешены латинские буквы, цифры и символы: _ @ # $ % ! ? & *'
+            'Разрешены латинские буквы, цифры и символы: '
+            f'{PASSWORD_ALLOWED_SYMBOLS}'
         )
 
-    return None
+    return errors or None
+
+
+def validate_password(
+    password: str,
+    email: str | None = None,
+) -> list[str] | None:
+    """Полная валидация пароля: базовые правила + оценка энтропии с zxcvbn.
+
+    Проверяет пароль на соответствие правилам безопасности и оценивает
+    его сложность с помощью zxcvbn. Включает предупреждения и предложения
+    по улучшению пароля.
+
+    Args:
+        password: Пароль в открытом виде.
+        email: Email пользователя.
+
+    Returns:
+        Список сообщений об ошибках, предупреждений и предложений,
+        если пароль не прошёл валидацию, иначе None.
+    """
+    errors: list[str] = []
+
+    base_error = check_password_rules(password, email)
+    if base_error:
+        errors.extend(base_error)
+
+    result = zxcvbn(password)
+    if result['score'] < 3:
+        errors.append('Пароль слишком слабый')
+
+        feedback = result.get('feedback', {})
+        if feedback.get('warning'):
+            errors.append(feedback.get('warning'))
+
+        errors.extend(feedback.get('suggestions', []))
+
+    return errors or None

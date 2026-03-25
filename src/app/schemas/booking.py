@@ -65,6 +65,7 @@ class BookingDateValidationMixin(BaseModel):
 
     booking_date: date | None = Field(None, description='Дата бронирования')
 
+    # TODO: Переписать на Pydantic v2
     @field_validator('booking_date')
     @classmethod
     def check_booking_date_not_past(cls, value: date | None) -> date | None:

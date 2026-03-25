@@ -1,10 +1,11 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, ForeignKey, Integer, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.constants import MAX_SEATS_COUNT, MIN_SEATS_COUNT
 from app.core.db import Base
+from app.utils import escape_html_field
 
 if TYPE_CHECKING:
     from app.models.cafe import Cafe
@@ -44,6 +45,11 @@ class Table(Base):
         back_populates='tables',
         doc='Кафе, к которому относится стол.',
     )
+
+    @validates('description')
+    def validate_description(self, key: str, value: str | None) -> str | None:
+        """Экранирует поле description для безопасности."""
+        return escape_html_field(value)
 
     __table_args__ = (
         CheckConstraint(

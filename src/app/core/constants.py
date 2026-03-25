@@ -27,7 +27,8 @@ MAX_LENGTH_USER_PASSWORD_HASH = 255
 MAX_LENGTH_USER_TG_ID = 50
 MIN_LENGTH_USER_PASSWORD = 6
 MAX_LENGTH_USER_PASSWORD = 50
-PASSWORD_PATTERN = re.compile(r'^[A-Za-z0-9_@#\$%!?\&\*]+$')
+PASSWORD_ALLOWED_SYMBOLS = '_@#$%!?&*'  # noqa: S105
+PASSWORD_PATTERN = re.compile(fr'^[A-Za-z0-9{PASSWORD_ALLOWED_SYMBOLS}]+$')
 EMAIL_PATTERN = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 PHONE_PATTERN = re.compile(r'^(\+7|8)\d{10}$')
 

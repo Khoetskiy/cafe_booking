@@ -3,7 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.constants import (
     MAX_LENGTH_CAFE_ADDRESS,
@@ -12,6 +12,7 @@ from app.core.constants import (
     MAX_LENGTH_CAFE_PHONE,
 )
 from app.core.db import Base
+from app.utils import escape_html_field
 
 if TYPE_CHECKING:
     from app.models.slot import Slot
@@ -75,6 +76,11 @@ class Cafe(Base):
         back_populates='cafe',
         lazy='selectin',
     )
+
+    @validates('name', 'address', 'phone', 'description')
+    def validate_html_fields(self, key: str, value: str | None) -> str | None:
+        """Экранирует текстовые поля для безопасности."""
+        return escape_html_field(value)
 
     __table_args__ = (
         UniqueConstraint(

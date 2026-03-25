@@ -10,11 +10,12 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.constants import MAX_LENGTH_BOOKING_NOTE
 from app.core.db import Base
 from app.models.enum import BookingStatus
+from app.utils import escape_html_field
 
 if TYPE_CHECKING:
     from app.models.cafe import Cafe
@@ -135,6 +136,11 @@ class Booking(Base):
         back_populates='booking',
         lazy='selectin',
     )
+
+    @validates('note')
+    def validate_note(self, key: str, value: str | None) -> str | None:
+        """Экранирует поле note для безопасности."""
+        return escape_html_field(value)
 
     __table_args__ = (
         CheckConstraint(

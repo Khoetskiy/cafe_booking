@@ -82,6 +82,7 @@ dependencies = [
   "Pillow==10.2.0",
   "ruff==0.11.11",
   "pre-commit==4.2.0",
+  "zxcvbn>=4.5.0",
 ]
 
 [tool.ruff]
@@ -241,13 +242,6 @@ max-complexity = 10  # Error C901 if cyclomatic complexity > 10
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
 
-[tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["E402", "E401"]
-"scripts/**/*.py" = ["T20"]
-"**/migrations/*.py" = ["ALL"]
-"*/settings/*.py" = ["F403", "F405", "E501", "T201", "PGH004", "TID252"]
-"*/schemas/slot.py" = ["TRY004"]
-
 [tool.ruff.format]
 quote-style = "single"
 indent-style = "space"
@@ -255,3 +249,11 @@ line-ending = "lf"
 skip-magic-trailing-comma = false
 docstring-code-format = true
 docstring-code-line-length = 60
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "E401"]
+"scripts/**/*.py" = ["T20"]
+"**/migrations/*.py" = ["ALL"]
+"*/settings/*.py" = ["F403", "F405", "E501", "T201", "PGH004", "TID252"]
+"*/schemas/slot.py" = ["TRY004"]
+"*/models/*.py" = ["ARG002"]
