@@ -12,7 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.constants import MAX_LENGTH_SLOT_DESCRIPTION
 from app.core.db import Base
-from app.utils.html import escape_html_field
+from app.utils import escape_html_field
 
 if TYPE_CHECKING:
     from app.models.cafe import Cafe
