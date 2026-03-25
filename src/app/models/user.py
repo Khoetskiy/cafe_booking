@@ -12,8 +12,8 @@ from app.core.constants import (
     MAX_LENGTH_USER_USERNAME,
 )
 from app.core.db import Base
-from app.core.security.html import escape_html_field
 from app.models.enum import UserRole
+from app.utils.html import escape_html_field
 
 if TYPE_CHECKING:
     from app.models.cafe import Cafe

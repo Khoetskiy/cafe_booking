@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.constants import MAX_SEATS_COUNT, MIN_SEATS_COUNT
 from app.core.db import Base
-from app.core.security.html import escape_html_field
+from app.utils.html import escape_html_field
 
 if TYPE_CHECKING:
     from app.models.cafe import Cafe

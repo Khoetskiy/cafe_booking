@@ -8,7 +8,7 @@ def escape_html_field(value: str | None) -> str | None:
         value: Значение поля для экранирования.
 
     Returns:
-        Экранированное значение или None.
+        Экранированное значение или None, если вход был None.
     """
     if value is not None:
         return html.escape(value)

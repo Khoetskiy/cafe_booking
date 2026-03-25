@@ -12,7 +12,7 @@ from app.core.constants import (
     MAX_LENGTH_CAFE_PHONE,
 )
 from app.core.db import Base
-from app.core.security.html import escape_html_field
+from app.utils.html import escape_html_field
 
 if TYPE_CHECKING:
     from app.models.slot import Slot
