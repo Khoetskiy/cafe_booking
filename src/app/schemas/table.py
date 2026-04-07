@@ -1,12 +1,13 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from app.core.constants import MAX_SEATS_COUNT, MIN_SEATS_COUNT
 from app.schemas.cafe import CafeShortInfo
+from app.schemas.validators import DescriptionValidateMixin
 
 
-class TableBase(BaseModel):
+class TableBase(DescriptionValidateMixin):
     """Базовая схема для стола."""
 
     seats_count: int = Field(
@@ -29,7 +30,7 @@ class TableCreate(TableBase):
     model_config = ConfigDict(extra='forbid')
 
 
-class TableUpdate(BaseModel):
+class TableUpdate(DescriptionValidateMixin):
     """Схема для обновления данных существующего стола."""
 
     seats_count: int | None = Field(

@@ -8,6 +8,7 @@ from app.schemas.cafe import CafeShortInfo
 from app.schemas.slot import TimeSlotShortInfo
 from app.schemas.table import TableShortInfo
 from app.schemas.user import UserShortInfo
+from app.utils import escape_html_field
 
 
 class TableSlot(BaseModel):
@@ -54,6 +55,12 @@ class BookingBase(BaseModel):
         ge=1,
         description='Количество гостей',
     )
+
+    @field_validator('note')
+    @classmethod
+    def validate_note(cls, value: str | None) -> str | None:
+        """Экранирует HTML-символы в примечании."""
+        return escape_html_field(value)
 
 
 class BookingDateValidationMixin(BaseModel):
@@ -119,6 +126,12 @@ class BookingUpdate(BookingDateValidationMixin):
         None,
         description='Флаг активности бронирования',
     )
+
+    @field_validator('note')
+    @classmethod
+    def validate_note(cls, value: str | None) -> str | None:
+        """Экранирует HTML-символы в примечании."""
+        return escape_html_field(value)
 
     model_config = ConfigDict(extra='forbid')
 
