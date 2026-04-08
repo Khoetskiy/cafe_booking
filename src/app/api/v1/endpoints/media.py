@@ -12,6 +12,10 @@ from fastapi import (
 from fastapi.responses import FileResponse
 
 from app.api.dependencies import current_active_user, current_admin_or_manager
+from app.api.v1.docs.media import (
+    MEDIA_GET_IMAGE_DESCRIPTION,
+    MEDIA_UPLOAD_IMAGE_DESCRIPTION,
+)
 from app.core.responses import (
     BAD_REQUEST_RESPONSE,
     FORBIDDEN_RESPONSE,
@@ -37,11 +41,7 @@ router = APIRouter()
         **MEDIA_NOT_FOUND_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
     },
-    description=(
-        'Доступно только авторизованным пользователям. '
-        'Изображение хранится в файловой системе сервера. '
-        'При отсутствии файла возвращается ошибка 404.'
-    ),
+    description=MEDIA_GET_IMAGE_DESCRIPTION,
 )
 async def get_image(
     media_id: Annotated[
@@ -67,11 +67,7 @@ async def get_image(
     response_model=MediaInfo,
     status_code=status.HTTP_200_OK,
     summary='Загрузка изображения',
-    description=(
-        'Загружает изображение в формате JPG или PNG (максимум 5 МБ), '
-        'конвертирует его в JPG и сохраняет в файловой системе. '
-        'Доступно только администраторам и менеджерам.'
-    ),
+    description=MEDIA_UPLOAD_IMAGE_DESCRIPTION,
     dependencies=[Depends(current_admin_or_manager)],
     responses={
         **OK_RESPONSE,

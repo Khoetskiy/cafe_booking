@@ -9,6 +9,15 @@ from app.api.dependencies import (
     DbSession,
     UserCreator,
 )
+from app.api.v1.docs.user import (
+    USER_CREATE_DESCRIPTION,
+    USER_DEACTIVATE_DESCRIPTION,
+    USER_GET_BY_ID_DESCRIPTION,
+    USER_GET_LIST_DESCRIPTION,
+    USER_GET_ME_DESCRIPTION,
+    USER_UPDATE_DESCRIPTION,
+    USER_UPDATE_ME_DESCRIPTION,
+)
 from app.core.responses import (
     CONFLICT_RESPONSE,
     CREATED_RESPONSE,
@@ -29,10 +38,7 @@ router = APIRouter()
     '/',
     response_model=list[UserInfo],
     summary='Получение списка пользователей',
-    description=(
-        'Возвращает информацию о всех пользователях. '
-        'Только для администраторов или менеджеров.'
-    ),
+    description=USER_GET_LIST_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -69,13 +75,7 @@ async def get_users_list(
     response_model=UserInfo,
     status_code=status.HTTP_201_CREATED,
     summary='Регистрация нового пользователя',
-    description=(
-        'Создает нового пользователя с указанными данными.\n\n'
-        '**Обязательные поля**:\n'
-        '- username\n'
-        '- password\n'
-        '- email или phone'
-    ),
+    description=USER_CREATE_DESCRIPTION,
     responses={
         **CREATED_RESPONSE,
         **FORBIDDEN_RESPONSE,
@@ -126,10 +126,7 @@ async def create_user(
     '/me',
     response_model=UserInfo,
     summary='Получение информации о текущем пользователе',
-    description=(
-        'Возвращает информацию о текущем пользователе. '
-        'Только для авторизованных пользователей.'
-    ),
+    description=USER_GET_ME_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -155,10 +152,7 @@ async def get_me(current_user: CurrentActiveUser) -> UserInfo:
     '/me',
     response_model=UserInfo,
     summary='Обновление информации о текущем пользователе',
-    description=(
-        'Возвращает обновленную информацию о пользователе. '
-        'Только для авторизованных пользователей.'
-    ),
+    description=USER_UPDATE_ME_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -207,10 +201,7 @@ async def update_me(
     '/{user_id}',
     response_model=UserInfo,
     summary='Получение информации о пользователе по его ID',
-    description=(
-        'Возвращает информацию о пользователе по его ID. '
-        'Только для администраторов или менеджеров.'
-    ),
+    description=USER_GET_BY_ID_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -253,10 +244,7 @@ async def get_user_by_id(
     '/{user_id}',
     response_model=UserInfo,
     summary='Обновление информации о пользователе по его ID',
-    description=(
-        'Возвращает обновленную информацию о пользователе по его ID. '
-        'Только для администраторов или менеджеров.'
-    ),
+    description=USER_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -305,10 +293,7 @@ async def update_user(
     status_code=status.HTTP_200_OK,
     response_model=UserInfo,
     summary='Деактивировать пользователя по ID',
-    description=(
-        'Деактивирует пользователя путем установки атрибута `is_active=False`.'
-        ' Доступно только администраторам.'
-    ),
+    description=USER_DEACTIVATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
