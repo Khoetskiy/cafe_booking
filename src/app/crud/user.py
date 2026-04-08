@@ -35,6 +35,11 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         Returns:
             Пользователь или None, если запись не найдена.
         """
+        field_name = getattr(field, 'key', None)
+        if field_name not in User.__mapper__.columns.keys():  # noqa: SIM118
+            msg = f'Недопустимое поле User: {field_name}'
+            raise ValueError(msg)
+
         stmt = select(User).where(field == value)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
