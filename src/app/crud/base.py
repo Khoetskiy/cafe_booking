@@ -148,7 +148,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             Созданный объект модели.
         """
         data = self._extract_data(obj_in)
-        model_fields = self._get_model_fields()
+        model_fields = set(self.model.__mapper__.columns.keys())
 
         filtered_data = {
             field: value
@@ -195,7 +195,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             Обновлённый объект модели.
         """
         update_data = self._extract_data(obj_in)
-        model_fields = self._get_model_fields()
+        model_fields = set(self.model.__mapper__.columns.keys())
 
         for field, value in update_data.items():
             if value is None:
@@ -246,10 +246,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if isinstance(obj_in, dict):
             return obj_in
         raise TypeError('obj_in должен быть схемой от BaseModel или dict')
-
-    def _get_model_fields(self) -> set[str]:
-        """Возвращает имена всех полей SQLAlchemy-модели."""
-        return set(self.model.__mapper__.columns.keys())
 
     @staticmethod
     def _apply_stmt_options(
@@ -345,7 +341,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         op = condition.get('op')
         value = condition.get('value')
 
-        if field not in self._get_model_fields():
+        if field not in set(self.model.__mapper__.columns.keys()):
             msg = f'Недопустимое поле фильтрации: "{field}".'
             raise ValueError(msg)
 
