@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencies import DbSession
+from app.api.v1.docs.auth import AUTH_LOGIN_DESCRIPTION
 from app.core.responses import AUTH_VALIDATION_ERROR_RESPONSE, OK_RESPONSE
 from app.core.security.jwt import create_access_token
 from app.schemas import AuthData, AuthToken
@@ -13,7 +14,7 @@ router = APIRouter()
     '/login',
     response_model=AuthToken,
     summary='Получение токена авторизации',
-    description='Возвращает токен для последующей авторизации пользователя.',
+    description=AUTH_LOGIN_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **AUTH_VALIDATION_ERROR_RESPONSE,

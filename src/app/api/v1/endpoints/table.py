@@ -7,6 +7,13 @@ from app.api.dependencies import (
     CurrentAdminOrManager,
     DbSession,
 )
+from app.api.v1.docs.table import (
+    TABLE_CREATE_DESCRIPTION,
+    TABLE_DEACTIVATE_DESCRIPTION,
+    TABLE_GET_BY_ID_DESCRIPTION,
+    TABLE_GET_LIST_DESCRIPTION,
+    TABLE_UPDATE_DESCRIPTION,
+)
 from app.core.responses import (
     CONFLICT_RESPONSE,
     CREATED_RESPONSE,
@@ -26,17 +33,7 @@ router = APIRouter()
     '/',
     response_model=list[TableInfo],
     summary='Список столов в кафе',
-    description=(
-        'Возвращает список столов кафе.\n\n'
-        '- Администратор может получать столы любого кафе и управлять '
-        'параметром `show_all`.\n'
-        '- Менеджер может получать столы только того кафе, которым '
-        'он управляет, и в этом случае также '
-        'может использовать параметр `show_all`.\n'
-        '- Обычные пользователи и менеджеры других кафе могут получать только '
-        'активные столы активных кафе, параметр `show_all` игнорируется.\n'
-        '- Неавторизованные пользователи не допускаются.'
-    ),
+    description=TABLE_GET_LIST_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -100,12 +97,7 @@ async def get_tables_list(
         **NOT_FOUND_RESPONSE,
         **VALIDATION_ERROR_RESPONSE,
     },
-    description=(
-        'Создает новый стол в кафе. '
-        'Доступно администраторам для любого кафе, '
-        'а также менеджерам — только для тех кафе, '
-        'которыми они управляют.'
-    ),
+    description=TABLE_CREATE_DESCRIPTION,
 )
 async def create_table(
     cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
@@ -154,18 +146,7 @@ async def create_table(
     '/{table_id}',
     response_model=TableInfo,
     summary='Информация о столе в кафе по его ID',
-    description=(
-        'Возвращает информацию о столе в указанном кафе.\n\n'
-        '- Администратор имеет доступ к любым столам, '
-        'независимо от их активности.\n'
-        '- Менеджер имеет полный доступ к столам кафе, '
-        'в котором он является менеджером.\n'
-        '- Менеджер, не являющийся менеджером данного кафе, '
-        'имеет доступ только к активным столам активного кафе.\n'
-        '- Обычный пользователь имеет доступ только к активным столам '
-        'активного кафе.\n'
-        '- Неавторизованные пользователи не допускаются.'
-    ),
+    description=TABLE_GET_BY_ID_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -216,12 +197,7 @@ async def get_table_by_id(
     '/{table_id}',
     response_model=TableInfo,
     summary='Обновление информации о столе в кафе по его ID',
-    description=(
-        'Обновление информации о столе в кафе по его ID. '
-        'Доступно администраторам для любого кафе, '
-        'а также менеджерам — только для тех кафе, '
-        'которыми они управляют.'
-    ),
+    description=TABLE_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -281,10 +257,7 @@ async def update_table(
     status_code=status.HTTP_200_OK,
     response_model=TableInfo,
     summary='Деактивировать стол',
-    description=(
-        'Деактивирует стол путем установки атрибута `is_active=False`. '
-        'Доступно только администраторам и менеджерам данного кафе.'
-    ),
+    description=TABLE_DEACTIVATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,

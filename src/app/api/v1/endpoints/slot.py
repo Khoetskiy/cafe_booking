@@ -7,6 +7,13 @@ from app.api.dependencies import (
     CurrentAdminOrManager,
     DbSession,
 )
+from app.api.v1.docs.slot import (
+    SLOT_CREATE_DESCRIPTION,
+    SLOT_DEACTIVATE_DESCRIPTION,
+    SLOT_GET_BY_ID_DESCRIPTION,
+    SLOT_GET_LIST_DESCRIPTION,
+    SLOT_UPDATE_DESCRIPTION,
+)
 from app.core.responses import (
     CONFLICT_RESPONSE,
     CREATED_RESPONSE,
@@ -26,17 +33,7 @@ router = APIRouter()
     '/',
     response_model=list[TimeSlotInfo],
     summary='Список временных слотов в кафе',
-    description=(
-        'Возвращает список временных слотов кафе.\n\n'
-        '- Администратор может получать слоты любого кафе и управлять '
-        'параметром `show_all`.\n'
-        '- Менеджер может получать слоты только того кафе, которым '
-        'он управляет, и в этом случае также '
-        'может использовать параметр `show_all`.\n'
-        '- Обычные пользователи и менеджеры других кафе могут получать только '
-        'активные слоты активных кафе, параметр `show_all` игнорируется.\n'
-        '- Неавторизованные пользователи не допускаются.'
-    ),
+    description=SLOT_GET_LIST_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -87,12 +84,7 @@ async def get_time_slots_list(
     response_model=TimeSlotInfo,
     status_code=status.HTTP_201_CREATED,
     summary='Новый временной слот в кафе',
-    description=(
-        'Создает новый временной слот в кафе. '
-        'Доступно администраторам для любого кафе, '
-        'а также менеджерам — только для тех кафе, '
-        'которыми они управляют.'
-    ),
+    description=SLOT_CREATE_DESCRIPTION,
     responses={
         **CREATED_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -147,18 +139,7 @@ async def create_time_slot(
     '/{slot_id}',
     response_model=TimeSlotInfo,
     summary='Информация о временном слоте в кафе по его ID',
-    description=(
-        'Возвращает информацию о временном слоте в указанном кафе.\n\n'
-        '- Администратор имеет доступ к любым слотам, '
-        'независимо от их активности.\n'
-        '- Менеджер имеет полный доступ к слотам кафе, '
-        'в котором он является менеджером.\n'
-        '- Менеджер, не являющийся менеджером данного кафе, '
-        'имеет доступ только к активным слотам активного кафе.\n'
-        '- Обычный пользователь имеет доступ только к активным слотам '
-        'активного кафе.\n'
-        '- Неавторизованные пользователи не допускаются.'
-    ),
+    description=SLOT_GET_BY_ID_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -208,12 +189,7 @@ async def get_time_slot_by_id(
     '/{slot_id}',
     response_model=TimeSlotInfo,
     summary='Обновление информации о временном слоте в кафе по его ID',
-    description=(
-        'Обновление информации о временном слоте в кафе по его ID. '
-        'Доступно администраторам для любого кафе, '
-        'а также менеджерам — только для тех кафе, '
-        'которыми они управляют.'
-    ),
+    description=SLOT_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -276,10 +252,7 @@ async def update_time_slot(
     status_code=status.HTTP_200_OK,
     response_model=TimeSlotInfo,
     summary='Деактивировать временный слот',
-    description=(
-        'Деактивирует слот путем установки атрибута `is_active=False`. '
-        'Доступно только администраторам и менеджерам данного кафе.'
-    ),
+    description=SLOT_DEACTIVATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,

@@ -7,6 +7,14 @@ from app.api.dependencies import (
     CurrentAdminOrManager,
     DbSession,
 )
+from app.api.v1.docs.booking import (
+    BOOKING_CREATE_DESCRIPTION,
+    BOOKING_DEACTIVATE_DESCRIPTION,
+    BOOKING_GET_BY_ID_DESCRIPTION,
+    BOOKING_MANAGEMENT_LIST_DESCRIPTION,
+    BOOKING_MY_LIST_DESCRIPTION,
+    BOOKING_UPDATE_DESCRIPTION,
+)
 from app.core.responses import (
     BAD_REQUEST_RESPONSE,
     CONFLICT_RESPONSE,
@@ -27,18 +35,7 @@ router = APIRouter()
     '/',
     response_model=list[BookingInfo],
     summary='Получение списка бронирований',
-    description=(
-        'Возвращает список бронирований в управленческом режиме.\n\n'
-        'Доступен администраторам и менеджерам.\n\n'
-        'Администратор:\n'
-        '- Просматривает бронирования всех кафе.\n'
-        '- Может фильтровать по `cafe_id` и `user_id`.\n'
-        '- Может включать все бронирования через параметр `show_all`.\n\n'
-        'Менеджер:\n'
-        '- Просматривает бронирования только своего кафе.\n'
-        '- Может фильтровать по `user_id`.\n'
-        '- Может включать все бронирования через параметр `show_all`.\n'
-    ),
+    description=BOOKING_MANAGEMENT_LIST_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -123,12 +120,7 @@ async def get_management_bookings_list(
     '/me',
     response_model=list[BookingInfo],
     summary='Получение списка бронирований текущего пользователя',
-    description=(
-        'Возвращает список активных бронирований текущего пользователя.\n\n'
-        '- Всегда возвращаются только активные бронирования.\n'
-        '- Фильтрация по `cafe_id` является дополнительной.\n'
-        '- Роль пользователя не влияет на результат.'
-    ),
+    description=BOOKING_MY_LIST_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -176,9 +168,7 @@ async def get_my_bookings_list(
     response_model=BookingInfo,
     status_code=status.HTTP_201_CREATED,
     summary='Создание нового бронирования',
-    description=(
-        'Создает новое бронирования. Только для авторизированных пользователей'
-    ),
+    description=BOOKING_CREATE_DESCRIPTION,
     responses={
         **CREATED_RESPONSE,
         **BAD_REQUEST_RESPONSE,
@@ -229,13 +219,7 @@ async def create_booking(
     '/{booking_id}',
     response_model=BookingInfo,
     summary='Получение информации о бронировании по его ID',
-    description=(
-        'Правила доступа:\n'
-        '- Администратор может просматривать любое бронирование;\n'
-        '- Менеджер может просматривать бронирования кафе, '
-        'которым он управляет;\n'
-        '- Пользователь может просматривать только собственные бронирования.'
-    ),
+    description=BOOKING_GET_BY_ID_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **BAD_REQUEST_RESPONSE,
@@ -288,13 +272,7 @@ async def get_booking_by_id(
     '/{booking_id}',
     response_model=BookingInfo,
     summary='Обновление информации о бронировании по его ID',
-    description=(
-        'Правила доступа:\n'
-        '- Администратор может обновлять любое бронирование;\n'
-        '- Менеджер может обновлять бронирования кафе, которым он управляет;\n'
-        '- Пользователь может обновлять только собственные бронирования, '
-        'если они активны и дата бронирования не в прошлом.'
-    ),
+    description=BOOKING_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **BAD_REQUEST_RESPONSE,
@@ -357,10 +335,7 @@ async def update(
     status_code=status.HTTP_200_OK,
     response_model=BookingInfo,
     summary='Деактивировать бронирование',
-    description=(
-        'Деактивирует бронирование путем установки атрибута `is_active=False`.'
-        ' Доступно только автору бронирования.'
-    ),
+    description=BOOKING_DEACTIVATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
