@@ -9,7 +9,7 @@ from app.core.constants import (
     MAX_LENGTH_CAFE_ADDRESS,
     MAX_LENGTH_CAFE_DESCRIPTION,
     MAX_LENGTH_CAFE_NAME,
-    MAX_LENGTH_CAFE_PHONE,
+    MAX_PHONE_DIGITS,
 )
 from app.core.db import Base
 from app.utils import escape_html_field
@@ -47,7 +47,7 @@ class Cafe(Base):
         index=True,
     )
     phone: Mapped[str] = mapped_column(
-        String(MAX_LENGTH_CAFE_PHONE),
+        String(MAX_PHONE_DIGITS),
         nullable=False,
         index=True,
     )
