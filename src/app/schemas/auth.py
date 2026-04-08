@@ -4,8 +4,8 @@ from app.core.constants import (
     EMAIL_PATTERN,
     MAX_LENGTH_USER_PASSWORD,
     MIN_LENGTH_USER_PASSWORD,
-    PHONE_PATTERN,
 )
+from app.schemas.validators import validate_phone_value
 
 
 class AuthData(BaseModel):
@@ -44,8 +44,10 @@ class AuthData(BaseModel):
         if EMAIL_PATTERN.fullmatch(login):
             return login
 
-        if PHONE_PATTERN.fullmatch(login):
-            return login
+        try:
+            return validate_phone_value(login)
+        except ValueError:
+            pass
 
         raise ValueError('Неверный логин или пароль')
 

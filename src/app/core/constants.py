@@ -30,7 +30,7 @@ MAX_LENGTH_USER_PASSWORD = 50
 PASSWORD_ALLOWED_SYMBOLS = '_@#$%!?&*'  # noqa: S105
 PASSWORD_PATTERN = re.compile(fr'^[A-Za-z0-9{PASSWORD_ALLOWED_SYMBOLS}]+$')
 EMAIL_PATTERN = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
-PHONE_PATTERN = re.compile(r'^(\+7|8)\d{10}$')
+PHONE_PATTERN = re.compile(r'^\+\d{10,12}$')
 
 # --- Slot ---
 MAX_LENGTH_SLOT_DESCRIPTION = 255

@@ -13,10 +13,13 @@ from app.core.constants import (
     MIN_LENGTH_CAFE_PHONE,
 )
 from app.schemas.user import UserShortInfo
-from app.schemas.validators import DescriptionValidateMixin
+from app.schemas.validators import (
+    DescriptionValidateMixin,
+    PhoneValidationMixin,
+)
 
 
-class CafeBase(DescriptionValidateMixin):
+class CafeBase(BaseModel):
     """Базовая схема кафе с общими полями сущности."""
 
     name: str = Field(
@@ -36,6 +39,7 @@ class CafeBase(DescriptionValidateMixin):
         min_length=MIN_LENGTH_CAFE_PHONE,
         max_length=MAX_LENGTH_CAFE_PHONE,
         description='Контактный телефон кафе',
+        examples=['+79991234567'],
     )
     description: str | None = Field(
         None,
@@ -48,7 +52,7 @@ class CafeBase(DescriptionValidateMixin):
     )
 
 
-class CafeCreate(CafeBase):
+class CafeCreate(CafeBase, DescriptionValidateMixin, PhoneValidationMixin):
     """Схема для создания нового кафе."""
 
     managers_id: list[int] = Field(
@@ -60,7 +64,7 @@ class CafeCreate(CafeBase):
     model_config = ConfigDict(extra='forbid')
 
 
-class CafeUpdate(DescriptionValidateMixin):
+class CafeUpdate(DescriptionValidateMixin, PhoneValidationMixin, BaseModel):
     """Схема для частичного обновления данных кафе."""
 
     name: str | None = Field(
@@ -80,6 +84,7 @@ class CafeUpdate(DescriptionValidateMixin):
         min_length=MIN_LENGTH_CAFE_PHONE,
         max_length=MAX_LENGTH_CAFE_PHONE,
         description='Контактный телефон кафе',
+        examples=['+79991234567'],
     )
     description: str | None = Field(
         None,
