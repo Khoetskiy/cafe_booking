@@ -4,7 +4,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from app.core.constants import (
     MAX_LENGTH_USER_EMAIL,
-    MAX_LENGTH_USER_PHONE,
     MAX_LENGTH_USER_TG_ID,
     MAX_LENGTH_USER_USERNAME,
     MIN_LENGTH_USER_PASSWORD,
@@ -12,9 +11,10 @@ from app.core.constants import (
 )
 from app.core.security.passwords import validate_password
 from app.models import UserRole
+from app.schemas.validators import PhoneValidationMixin
 
 
-class PasswordValidationMixin(BaseModel):
+class PasswordValidationMixin:
     """Миксин для валидации и проверки пароля."""
 
     @model_validator(mode='before')
@@ -61,7 +61,7 @@ class UserBase(BaseModel):
     phone: str | None = Field(
         None,
         description='Номер телефона',
-        max_length=MAX_LENGTH_USER_PHONE,
+        examples=['+79991234567'],
     )
     tg_id: str | None = Field(
         None,
@@ -70,7 +70,7 @@ class UserBase(BaseModel):
     )
 
 
-class UserCreate(UserBase, PasswordValidationMixin):
+class UserCreate(UserBase, PasswordValidationMixin, PhoneValidationMixin):
     """Схема для создания нового пользователя."""
 
     username: str = Field(
@@ -93,7 +93,7 @@ class UserCreate(UserBase, PasswordValidationMixin):
         return self
 
 
-class UserUpdate(UserBase, PasswordValidationMixin):
+class UserUpdate(UserBase, PasswordValidationMixin, PhoneValidationMixin):
     """Схема для обновления данных пользователя."""
 
     role: UserRole | None = Field(
@@ -111,7 +111,7 @@ class UserUpdate(UserBase, PasswordValidationMixin):
     )
 
 
-class UserUpdateMe(UserBase, PasswordValidationMixin):
+class UserUpdateMe(UserBase, PasswordValidationMixin, PhoneValidationMixin):
     """Схема для обновления данных текущего пользователя."""
 
     password: str | None = Field(
