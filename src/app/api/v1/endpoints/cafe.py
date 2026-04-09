@@ -8,6 +8,13 @@ from app.api.dependencies import (
     CurrentAdminOrManager,
     DbSession,
 )
+from app.api.v1.docs.cafe import (
+    CAFE_CREATE_DESCRIPTION,
+    CAFE_DEACTIVATE_DESCRIPTION,
+    CAFE_GET_BY_ID_DESCRIPTION,
+    CAFE_GET_LIST_DESCRIPTION,
+    CAFE_UPDATE_DESCRIPTION,
+)
 from app.core.responses import (
     BAD_REQUEST_RESPONSE,
     CONFLICT_RESPONSE,
@@ -28,12 +35,7 @@ router = APIRouter()
     '/',
     response_model=list[CafeInfo],
     summary='Получение списка кафе',
-    description=(
-        'Возвращает список кафе с учётом роли пользователя:\n'
-        '- Администратор может получать все кафе (включая неактивные).\n'
-        '- Менеджер видит все активные кафе и своё кафе.\n'
-        '- Пользователь видит только активные кафе.'
-    ),
+    description=CAFE_GET_LIST_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
@@ -73,10 +75,7 @@ async def get_cafes_list(
     response_model=CafeInfo,
     status_code=status.HTTP_201_CREATED,
     summary='Создание нового кафе',
-    description=(
-        'Создаёт новое кафе и назначает менеджеров.\n\n'
-        'Доступно только администраторам.'
-    ),
+    description=CAFE_CREATE_DESCRIPTION,
     responses={
         **CREATED_RESPONSE,
         **BAD_REQUEST_RESPONSE,
@@ -119,12 +118,7 @@ async def create_cafe(
     '/{cafe_id}',
     response_model=CafeInfo,
     summary='Получение информации о кафе по ID',
-    description=(
-        'Возвращает кафе по идентификатору с учётом роли пользователя:\n'
-        '- Администратор может получить любое кафе (включая неактивное).\n'
-        '- Менеджер может получить активное кафе и своё кафе.\n'
-        '- Пользователь может получить только активное кафе.'
-    ),
+    description=CAFE_GET_BY_ID_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **BAD_REQUEST_RESPONSE,
@@ -156,13 +150,7 @@ async def get_cafe_by_id(
     '/{cafe_id}',
     response_model=CafeInfo,
     summary='Обновление информации о кафе по ID',
-    description=(
-        'Частичное обновление информации о кафе.\n\n'
-        'Правила доступа:\n'
-        '- Администратор может обновлять любое кафе.\n'
-        '- Менеджер может обновлять только кафе, к которому он привязан.\n'
-        '- Обычный пользователь не имеет доступа.\n\n'
-    ),
+    description=CAFE_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **BAD_REQUEST_RESPONSE,
@@ -209,10 +197,7 @@ async def update_cafe(
     status_code=status.HTTP_200_OK,
     response_model=CafeInfo,
     summary='Деактивировать кафе по ID',
-    description=(
-        'Деактивирует кафе путем установки атрибута `is_active=False`. '
-        'Доступно только администраторам.'
-    ),
+    description=CAFE_DEACTIVATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
         **UNAUTHORIZED_RESPONSE,

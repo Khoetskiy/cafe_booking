@@ -1,5 +1,5 @@
 from .auth import AuthData, AuthToken
-from .booking import BookingCreate, BookingInfo, BookingUpdate, TableSlot
+from .booking import BookingCreate, BookingInfo, BookingUpdate
 from .cafe import CafeCreate, CafeInfo, CafeShortInfo, CafeUpdate
 from .error import ErrorResponse
 from .media import MediaData, MediaInfo
@@ -15,6 +15,7 @@ from .table import (
     TableShortInfo,
     TableUpdate,
 )
+from .table_slot import TableSlot, TableSlotInfo
 from .user import UserCreate, UserInfo, UserShortInfo, UserUpdate, UserUpdateMe
 
 __all__ = [
@@ -34,6 +35,7 @@ __all__ = [
     'TableInfo',
     'TableShortInfo',
     'TableSlot',
+    'TableSlotInfo',
     'TableUpdate',
     'TimeSlotCreate',
     'TimeSlotInfo',

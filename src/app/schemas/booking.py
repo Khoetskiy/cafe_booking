@@ -5,40 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.core.constants import MAX_LENGTH_BOOKING_NOTE
 from app.models import BookingStatus
 from app.schemas.cafe import CafeShortInfo
-from app.schemas.slot import TimeSlotShortInfo
-from app.schemas.table import TableShortInfo
+from app.schemas.table_slot import TableSlot, TableSlotInfo
 from app.schemas.user import UserShortInfo
-
-
-class TableSlot(BaseModel):
-    """Пара стол + временной слот."""
-
-    table_id: int = Field(
-        ...,
-        description='ID стола',
-    )
-    slot_id: int = Field(
-        ...,
-        description='ID временного слота',
-    )
-
-    model_config = ConfigDict(extra='forbid')
-
-
-class TableSlotInfo(BaseModel):
-    """Информация о занятом столе и временном слоте в бронировании."""
-
-    id: int = Field(..., description='ID связи стол–слот в бронировании')
-    table: TableShortInfo = Field(
-        ...,
-        description='Информация о столе',
-    )
-    slot: TimeSlotShortInfo = Field(
-        ...,
-        description='Информация о временном слоте',
-    )
-
-    model_config = ConfigDict(from_attributes=True)
+from app.utils import escape_html_field
 
 
 class BookingBase(BaseModel):
@@ -54,6 +23,12 @@ class BookingBase(BaseModel):
         ge=1,
         description='Количество гостей',
     )
+
+    @field_validator('note')
+    @classmethod
+    def validate_note(cls, value: str | None) -> str | None:
+        """Экранирует HTML-символы в примечании."""
+        return escape_html_field(value)
 
 
 class BookingDateValidationMixin(BaseModel):
@@ -119,6 +94,12 @@ class BookingUpdate(BookingDateValidationMixin):
         None,
         description='Флаг активности бронирования',
     )
+
+    @field_validator('note')
+    @classmethod
+    def validate_note(cls, value: str | None) -> str | None:
+        """Экранирует HTML-символы в примечании."""
+        return escape_html_field(value)
 
     model_config = ConfigDict(extra='forbid')
 
