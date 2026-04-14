@@ -42,7 +42,6 @@ class Table(Base):
 
     cafe: Mapped['Cafe'] = relationship(
         'Cafe',
-        back_populates='tables',
         doc='Кафе, к которому относится стол.',
     )
 

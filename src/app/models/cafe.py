@@ -15,8 +15,6 @@ from app.core.db import Base
 from app.utils import escape_html_field
 
 if TYPE_CHECKING:
-    from app.models.slot import Slot
-    from app.models.table import Table
     from app.models.user import User
 
 
@@ -24,7 +22,7 @@ class Cafe(Base):
     """Модель кафе.
 
     Представляет кафе в системе бронирования мест. Содержит информацию
-    об основных параметрах кафе, связях с менеджерами, столами и слотами.
+    об основных параметрах кафе и связях с менеджерами.
 
     Attributes:
         name: Название кафе.
@@ -63,16 +61,6 @@ class Cafe(Base):
 
     managers: Mapped[list['User']] = relationship(
         'User',
-        lazy='selectin',
-    )
-    tables: Mapped[list['Table']] = relationship(
-        'Table',
-        back_populates='cafe',
-        lazy='selectin',
-    )
-    slots: Mapped[list['Slot']] = relationship(
-        'Slot',
-        back_populates='cafe',
         lazy='selectin',
     )
 
