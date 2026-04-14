@@ -40,6 +40,15 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             msg = f'Недопустимое поле User: {field_name}'
             raise ValueError(msg)
 
+        # Do not query nullable unique fields by None or blank strings:
+        # multiple users may have NULL in such columns, so this lookup
+        # must only run for actual values.
+        if value is None:
+            return None
+
+        if isinstance(value, str) and not value.strip():
+            return None
+
         stmt = select(User).where(field == value)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
