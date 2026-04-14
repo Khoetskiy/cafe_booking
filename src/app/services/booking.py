@@ -342,6 +342,10 @@ class BookingService:
             session=session,
         )
 
+        # Re-fetch the booking so `tables_slots.table` and `tables_slots.slot`
+        # are loaded before response-model serialization.
+        booking = await self._get_booking_or_404(booking.id, session)
+
         logger.info(
             'Создано бронирование: %s',
             booking.__repr__(),

@@ -1,8 +1,6 @@
-from typing import TYPE_CHECKING
-
 from sqlalchemy import CheckConstraint, ForeignKey, String
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.core.constants import (
     MAX_LENGTH_USER_EMAIL,
@@ -13,10 +11,11 @@ from app.core.constants import (
 )
 from app.core.db import Base
 from app.models.enum import UserRole
-from app.utils import escape_html_field
-
-if TYPE_CHECKING:
-    from app.models.cafe import Cafe
+from app.utils import (
+    escape_html_field,
+    validate_email_value,
+    validate_phone_value,
+)
 
 
 class User(Base):
@@ -64,20 +63,34 @@ class User(Base):
         ForeignKey('cafe.id', ondelete='RESTRICT'),
         nullable=True,
     )
-    cafe: Mapped['Cafe'] = relationship(
-        'Cafe',
-        back_populates='managers',
-        lazy='selectin',
-    )
 
     @validates('username')
     def validate_username(self, key: str, value: str) -> str:
         """Экранирует поле username для безопасности."""
         return escape_html_field(value)
 
+    @validates('email', 'phone')
+    def validate_contact_field(
+        self,
+        key: str,
+        value: str | None,
+    ) -> str | None:
+        """Валидирует значение контактного поля ('phone' или 'email')."""
+        if key == 'phone':
+            return validate_phone_value(value)
+
+        if key == 'email':
+            return validate_email_value(value)
+
+        return value
+
     __table_args__ = (
         CheckConstraint(
-            '(email IS NOT NULL) OR (phone IS NOT NULL)',
+            """
+            (NULLIF(TRIM(email), '') IS NOT NULL)
+            OR
+            (NULLIF(TRIM(phone), '') IS NOT NULL)
+            """,
             name='check_user_email_or_phone_required',
         ),
     )

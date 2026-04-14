@@ -44,10 +44,8 @@ class Slot(Base):
         nullable=True,
     )
 
-    # TODO (#85): Убрать lazy='selectin' и явную загружать через options
     cafe: Mapped['Cafe'] = relationship(
         'Cafe',
-        back_populates='slots',
         lazy='selectin',
     )
 

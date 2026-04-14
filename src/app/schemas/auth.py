@@ -1,11 +1,10 @@
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
 from app.core.constants import (
-    EMAIL_PATTERN,
     MAX_LENGTH_USER_PASSWORD,
     MIN_LENGTH_USER_PASSWORD,
 )
-from app.schemas.validators import validate_phone_value
+from app.utils import validate_email_value, validate_phone_value
 
 
 class AuthData(BaseModel):
@@ -41,8 +40,10 @@ class AuthData(BaseModel):
         """
         login = value.strip()
 
-        if EMAIL_PATTERN.fullmatch(login):
-            return login
+        try:
+            return validate_email_value(login)
+        except ValueError:
+            pass
 
         try:
             return validate_phone_value(login)
