@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.constants import MAX_SEATS_COUNT, MIN_SEATS_COUNT
@@ -9,6 +9,11 @@ from app.utils import escape_html_field
 
 if TYPE_CHECKING:
     from app.models.cafe import Cafe
+
+
+SEATS_COUNT_RANGE_CHECK = (
+    f'seats_count BETWEEN {MIN_SEATS_COUNT} AND {MAX_SEATS_COUNT}'
+)
 
 
 class Table(Base):
@@ -52,7 +57,7 @@ class Table(Base):
 
     __table_args__ = (
         CheckConstraint(
-            f'seats_count BETWEEN {MIN_SEATS_COUNT} AND {MAX_SEATS_COUNT}',
+            text(SEATS_COUNT_RANGE_CHECK),
             name='check_seats_count_range',
         ),
     )
