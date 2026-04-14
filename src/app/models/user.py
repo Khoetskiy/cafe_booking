@@ -11,7 +11,11 @@ from app.core.constants import (
 )
 from app.core.db import Base
 from app.models.enum import UserRole
-from app.utils import escape_html_field
+from app.utils import (
+    escape_html_field,
+    validate_email_value,
+    validate_phone_value,
+)
 
 
 class User(Base):
@@ -65,9 +69,28 @@ class User(Base):
         """Экранирует поле username для безопасности."""
         return escape_html_field(value)
 
+    @validates('email', 'phone')
+    def validate_contact_field(
+        self,
+        key: str,
+        value: str | None,
+    ) -> str | None:
+        """Валидирует значение контактного поля ('phone' или 'email')."""
+        if key == 'phone':
+            return validate_phone_value(value)
+
+        if key == 'email':
+            return validate_email_value(value)
+
+        return value
+
     __table_args__ = (
         CheckConstraint(
-            '(email IS NOT NULL) OR (phone IS NOT NULL)',
+            """
+            (NULLIF(TRIM(email), '') IS NOT NULL)
+            OR
+            (NULLIF(TRIM(phone), '') IS NOT NULL)
+            """,
             name='check_user_email_or_phone_required',
         ),
     )
