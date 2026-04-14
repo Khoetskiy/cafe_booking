@@ -1,8 +1,6 @@
-from typing import TYPE_CHECKING
-
 from sqlalchemy import CheckConstraint, ForeignKey, String
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.core.constants import (
     MAX_LENGTH_USER_EMAIL,
@@ -14,9 +12,6 @@ from app.core.constants import (
 from app.core.db import Base
 from app.models.enum import UserRole
 from app.utils import escape_html_field
-
-if TYPE_CHECKING:
-    from app.models.cafe import Cafe
 
 
 class User(Base):
@@ -63,11 +58,6 @@ class User(Base):
     cafe_id: Mapped[int | None] = mapped_column(
         ForeignKey('cafe.id', ondelete='RESTRICT'),
         nullable=True,
-    )
-    cafe: Mapped['Cafe'] = relationship(
-        'Cafe',
-        back_populates='managers',
-        lazy='selectin',
     )
 
     @validates('username')

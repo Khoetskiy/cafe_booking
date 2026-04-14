@@ -63,7 +63,6 @@ class Cafe(Base):
 
     managers: Mapped[list['User']] = relationship(
         'User',
-        back_populates='cafe',
         lazy='selectin',
     )
     tables: Mapped[list['Table']] = relationship(
