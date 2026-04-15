@@ -16,6 +16,33 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     (username, email, phone). Не содержит HTTP или бизнес-логики.
     """
 
+    async def get_by_login(
+        self,
+        login: str,
+        session: AsyncSession,
+    ) -> User | None:
+        """Возвращает пользователя по логину (email или номер телефона).
+
+        Выполняет поиск пользователя в базе данных по указанному логину,
+        который может быть адресом электронной почты или номером телефона.
+
+        Args:
+            login: Строка для поиска пользователя (email или phone).
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Объект User, если пользователь найден, иначе None.
+        """
+        # If one user's email matches another user's phone, this query
+        # may return either record because no explicit priority is defined.
+        stmt = (
+            select(User)
+            .where((User.email == login) | (User.phone == login))
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_username(
         self,
         username: str,
