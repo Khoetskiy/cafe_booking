@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -175,15 +176,22 @@ class CafeService:
             )
 
         elif user.role == UserRole.MANAGER:
-            cafes = await cafe_crud.get_active_cafes(session=session)
-
+            conditions: list[dict[str, Any]] = [
+                {'field': 'is_active', 'op': 'eq', 'value': True},
+            ]
             if show_all and user.cafe_id is not None:
-                own_cafe = await cafe_crud.get_by_id(
-                    obj_id=user.cafe_id,
-                    session=session,
+                conditions.append(
+                    {'field': 'id', 'op': 'eq', 'value': user.cafe_id}
                 )
-                if own_cafe and not own_cafe.is_active:
-                    cafes.append(own_cafe)
+            cafes = await cafe_crud.get_multi(
+                filters=[
+                    {
+                        'logic': 'or',
+                        'conditions': conditions,
+                    }
+                ],
+                session=session,
+            )
 
         else:
             cafes = await cafe_crud.get_active_cafes(session=session)
