@@ -6,7 +6,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 
 from app.crud.base import CRUDBase
 from app.models import User, UserRole
-from app.schemas import UserCreate, UserUpdate, UserUpdateMe
+from app.schemas import UserCreate, UserUpdate
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
@@ -15,6 +15,14 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     Содержит методы выборки пользователей по уникальным полям
     (username, email, phone). Не содержит HTTP или бизнес-логики.
     """
+
+    async def get_by_email(
+        self,
+        email: str,
+        session: AsyncSession,
+    ) -> User | None:
+        """Возвращает пользователя по email."""
+        return await self._get_by_field(User.email, email, session)
 
     async def get_by_login(
         self,
@@ -107,38 +115,6 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             )
 
         return await self.get_multi(filters=filters, session=session)
-
-    async def get_by_username(
-        self,
-        username: str,
-        session: AsyncSession,
-    ) -> User | None:
-        """Возвращает пользователя по username."""
-        return await self._get_by_field(User.username, username, session)
-
-    async def get_by_email(
-        self,
-        email: str,
-        session: AsyncSession,
-    ) -> User | None:
-        """Возвращает пользователя по email."""
-        return await self._get_by_field(User.email, email, session)
-
-    async def get_by_phone(
-        self,
-        phone: str,
-        session: AsyncSession,
-    ) -> User | None:
-        """Возвращает пользователя по номеру телефона."""
-        return await self._get_by_field(User.phone, phone, session)
-
-    async def get_by_tg_id(
-        self,
-        tg_id: str,
-        session: AsyncSession,
-    ) -> User | None:
-        """Возвращает пользователя по Telegram ID."""
-        return await self._get_by_field(User.tg_id, tg_id, session)
 
     async def get_managers_by_ids(
         self,
