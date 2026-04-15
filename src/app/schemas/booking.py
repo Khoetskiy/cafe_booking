@@ -70,7 +70,11 @@ class BookingUpdate(BaseModel):
         min_length=1,
         description='Список пар стол–временной слот',
     )
-    guest_number: int | None = Field(None, description='Количество гостей')
+    guest_number: int | None = Field(
+        None,
+        ge=1,
+        description='Количество гостей',
+    )
     note: str | None = Field(
         None,
         max_length=MAX_LENGTH_BOOKING_NOTE,
