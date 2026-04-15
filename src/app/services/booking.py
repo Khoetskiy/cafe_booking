@@ -398,11 +398,13 @@ class BookingService:
         """
         booking = await self._get_booking_or_404(booking_id, session)
 
-        if not self._can_update_booking(user, booking):
+        if not self._can_manage_booking(user, booking):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Бронирование не найдено',
             )
+
+        self._ensure_booking_can_be_updated(booking)
 
         logger.info(
             'Начато обновление бронирования: %s',
@@ -508,7 +510,7 @@ class BookingService:
                 - 409: Если бронирование уже деактивировано.
         """
         booking = await self._get_booking_or_404(booking_id, session)
-        if not self._can_update_booking(user, booking):
+        if not self._can_manage_booking(user, booking):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail='Недостаточно прав',
@@ -595,15 +597,15 @@ class BookingService:
 
         return booking.user_id == user.id
 
-    def _can_update_booking(self, user: User, booking: Booking) -> bool:
-        """Проверяет, имеет ли пользователь право обновлять бронирование.
+    def _can_manage_booking(self, user: User, booking: Booking) -> bool:
+        """Проверяет, имеет ли пользователь право управлять бронированием.
 
         Правила:
-        - Администратор имеет право обновлять любое бронирование;
-        - Менеджер имеет право обновлять бронирования кафе,
+        - Администратор имеет право управлять любым бронированием;
+        - Менеджер имеет право управлять бронированиями кафе,
                                     которым он управляет;
-        - Пользователь имеет право обновлять только собственные бронирования,
-                            если они активны и дата бронирования не в прошлом.
+        - Пользователь имеет право управлять только собственными
+                                                    бронированиями.
 
         Args:
             user: Текущий пользователь.
@@ -612,18 +614,11 @@ class BookingService:
         Returns:
             True — если доступ разрешён, False — если доступ запрещён.
         """
-        has_permission = (
+        return (
             user.role == UserRole.ADMIN
             or can_manage_cafe(user, booking.cafe_id)
             or booking.user_id == user.id
         )
-
-        if not has_permission:
-            return False
-
-        self._ensure_booking_can_be_updated(booking)
-
-        return True
 
     def _ensure_booking_can_be_updated(
         self,
