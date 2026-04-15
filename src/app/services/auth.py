@@ -27,24 +27,6 @@ async def authenticate_user(
     Returns:
         Объект User при успешной аутентификации или None.
     """
-    # user = await user_crud.get_by_email(email=login, session=session)
-    # if not user:
-    #     user = await user_crud.get_by_phone(phone=login, session=session)
-
-    # users = await user_crud.get_multi(
-    #     filters=[
-    #         {
-    #             'logic': 'or',
-    #             'conditions': [
-    #                 {'field': 'email', 'op': 'eq', 'value': login},
-    #                 {'field': 'phone', 'op': 'eq', 'value': login},
-    #             ],
-    #         }
-    #     ],
-    #     session=session,
-    # )
-    # user = users[0] if users else None
-
     user = await user_crud.get_by_login(login, session)
 
     if not user or not verify_password(password, user.password_hash):
