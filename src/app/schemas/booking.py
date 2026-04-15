@@ -31,26 +31,7 @@ class BookingBase(BaseModel):
         return escape_html_field(value)
 
 
-class BookingDateValidationMixin(BaseModel):
-    """Миксин для валидации даты бронирования.
-
-    Используется в схемах создания и обновления бронирования
-    для запрета установки даты в прошлом.
-    """
-
-    booking_date: date | None = Field(None, description='Дата бронирования')
-
-    # TODO: Переписать на Pydantic v2
-    @field_validator('booking_date')
-    @classmethod
-    def check_booking_date_not_past(cls, value: date | None) -> date | None:
-        """Проверяет, что дата бронирования не в прошлом."""
-        if value is not None and value < date.today():
-            raise ValueError('Дата бронирования не может быть в прошлом')
-        return value
-
-
-class BookingCreate(BookingBase, BookingDateValidationMixin):
+class BookingCreate(BookingBase):
     """Схема для создания бронирования."""
 
     cafe_id: int = Field(
@@ -68,10 +49,19 @@ class BookingCreate(BookingBase, BookingDateValidationMixin):
     )
     booking_date: date = Field(..., description='Дата бронирования')
 
+    # TODO: Переписать на Pydantic v2
+    @field_validator('booking_date')
+    @classmethod
+    def check_booking_date_not_past(cls, value: date) -> date:
+        """Проверяет, что дата бронирования не в прошлом."""
+        if value is not None and value < date.today():
+            raise ValueError('Дата бронирования не может быть в прошлом')
+        return value
+
     model_config = ConfigDict(extra='forbid')
 
 
-class BookingUpdate(BookingDateValidationMixin):
+class BookingUpdate(BaseModel):
     """Схема для частичного обновления бронирования."""
 
     cafe_id: int | None = Field(None, description='ID кафе')
@@ -94,6 +84,9 @@ class BookingUpdate(BookingDateValidationMixin):
         None,
         description='Флаг активности бронирования',
     )
+    # For updates, booking_date is validated in the service after the access
+    # check, so the API does not return 422 before existence/permission checks.
+    booking_date: date | None = Field(None, description='Дата бронирования')
 
     @field_validator('note')
     @classmethod

@@ -612,13 +612,18 @@ class BookingService:
         Returns:
             True — если доступ разрешён, False — если доступ запрещён.
         """
-        self._ensure_booking_can_be_updated(booking)
-
-        return (
+        has_permission = (
             user.role == UserRole.ADMIN
             or can_manage_cafe(user, booking.cafe_id)
             or booking.user_id == user.id
         )
+
+        if not has_permission:
+            return False
+
+        self._ensure_booking_can_be_updated(booking)
+
+        return True
 
     def _ensure_booking_can_be_updated(
         self,
