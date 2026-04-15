@@ -13,40 +13,8 @@ logger = logging.getLogger(__name__)
 USER_CONFLICT_DETAIL = 'Пользователь с такими данными уже существует'
 
 
-async def get_user_or_404(
-    user_id: int,
-    session: AsyncSession,
-) -> User:
-    """Возвращает пользователя по ID или выбрасывает 404.
-
-    Args:
-        user_id: Идентификатор пользователя.
-        session: Асинхронная сессия SQLAlchemy.
-
-    Returns:
-        Объект User.
-
-    Raises:
-        HTTPException:
-            - 404: Если пользователь не найден.
-    """
-    user = await user_crud.get_by_id(user_id, session)
-
-    if not user:
-        logger.warning(
-            'Пользователь не найден (user_id=%s)',
-            user_id,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Пользователь не найден',
-        )
-
-    return user
-
-
 class UserService:
-    """Сервис бизнес-логики дял управления пользователями.
+    """Сервис бизнес-логики для управления пользователями.
 
     Инкапсулирует все бизнес-правила и проверки, связанные с пользователями:
     - валидации данных;
@@ -55,7 +23,7 @@ class UserService:
     - работу CRUD-слоя.
 
     Используется API-эндпоинтами как единственная точка доступа
-    к бизнес-логике работы с временными слотами.
+    к бизнес-логике работы с пользователями.
     """
 
     async def get_user_by_id(
@@ -83,7 +51,7 @@ class UserService:
         """
         self._ensure_manage_permission(current_user)
 
-        user = await get_user_or_404(user_id, session)
+        user = await self._get_user_or_404(user_id, session)
 
         logger.info(
             'Получен пользователь: %s',
@@ -256,7 +224,7 @@ class UserService:
         """
         self._ensure_manage_permission(current_user)
 
-        user = await get_user_or_404(user_id, session)
+        user = await self._get_user_or_404(user_id, session)
 
         await self._check_user_uniqueness(
             user_in=user_in,
@@ -318,7 +286,7 @@ class UserService:
             Обновлённый пользователь.
 
         Raises:
-            HTTPException
+            HTTPException:
                 - 409: Если нарушена уникальность данных.
         """
         await self._check_user_uniqueness(
@@ -375,7 +343,7 @@ class UserService:
                 detail='Недостаточно прав',
             )
 
-        user = await get_user_or_404(user_id, session)
+        user = await self._get_user_or_404(user_id, session)
 
         if not user.is_active:
             raise HTTPException(
@@ -407,7 +375,7 @@ class UserService:
             current_user: Пользователь, инициировавший операцию либо None.
 
         Raises:
-            HTTPException
+            HTTPException:
                 - 403: Если авторизованный пользователь не имеет прав
                                         на создание нового пользователя.
         """
@@ -523,6 +491,38 @@ class UserService:
                     status_code=status.HTTP_409_CONFLICT,
                     detail=USER_CONFLICT_DETAIL,
                 )
+
+    async def _get_user_or_404(
+        self,
+        user_id: int,
+        session: AsyncSession,
+    ) -> User:
+        """Возвращает пользователя по ID или выбрасывает 404.
+
+        Args:
+            user_id: Идентификатор пользователя.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Объект User.
+
+        Raises:
+            HTTPException:
+                - 404: Если пользователь не найден.
+        """
+        user = await user_crud.get_by_id(user_id, session)
+
+        if not user:
+            logger.warning(
+                'Пользователь не найден (user_id=%s)',
+                user_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Пользователь не найден',
+            )
+
+        return user
 
     def _prepare_create_data(
         self,
