@@ -64,7 +64,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         1. Обычное условие (AND по умолчанию):
             {
                 "field": str,   # имя поля модели
-                "op": str,      # операция (eq, like, gt, lt, gte, lte, in)
+                "op": str,      # операция (eq, ne, like, gt, lt, gte, lte, in)
                 "value": Any,   # значение для сравнения
             }
 
@@ -317,12 +317,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             }
 
         Поддерживаемые операции:
-            - eq   : ==
+            - eq   : ==  (Equal)
+            - ne   : !=  (Not equal)
             - like : LIKE
-            - gt   : >
-            - lt   : <
-            - gte  : >=
-            - lte  : <=
+            - gt   : >   (Greater than)
+            - lt   : <   (Less than)
+            - gte  : >=  (Greater than or equal)
+            - lte  : <=  (Less than or equal)
             - in   : IN
 
         Args:
@@ -349,6 +350,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         if op == 'eq':
             return column == value
+        if op == 'ne':
+            return column != value
         if op == 'like':
             return column.like(value)
         if op == 'gt':
