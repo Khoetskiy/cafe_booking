@@ -16,6 +16,14 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     (username, email, phone). Не содержит HTTP или бизнес-логики.
     """
 
+    async def get_by_email(
+        self,
+        email: str,
+        session: AsyncSession,
+    ) -> User | None:
+        """Возвращает пользователя по email."""
+        return await self._get_by_field(User.email, email, session)
+
     async def get_by_login(
         self,
         login: str,
@@ -43,37 +51,70 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_username(
+    async def find_conflicting_users(
         self,
-        username: str,
+        *,
+        username: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
+        tg_id: str | None = None,
+        exclude_user_id: int | None = None,
         session: AsyncSession,
-    ) -> User | None:
-        """Возвращает пользователя по username."""
-        return await self._get_by_field(User.username, username, session)
+    ) -> list[User]:
+        """Находит пользователей с конфликтующими данными.
 
-    async def get_by_email(
-        self,
-        email: str,
-        session: AsyncSession,
-    ) -> User | None:
-        """Возвращает пользователя по email."""
-        return await self._get_by_field(User.email, email, session)
+        Ищет пользователей в базе данных, у которых совпадают указанные
+        идентификационные данные (username, email, phone или tg_id) с
+        переданными параметрами. Может исключить из результатов
+        конкретного пользователя по его ID.
 
-    async def get_by_phone(
-        self,
-        phone: str,
-        session: AsyncSession,
-    ) -> User | None:
-        """Возвращает пользователя по номеру телефона."""
-        return await self._get_by_field(User.phone, phone, session)
+        Args:
+            username: Имя пользователя.
+            email: Email.
+            phone: Номер телефона.
+            tg_id: Telegram ID.
+            exclude_user_id: ID пользователя, которого нужно исключить из
+                        результатов поиска (например, при обновлении данных).
+            session: Асинхронная сессия SQLAlchemy.
 
-    async def get_by_tg_id(
-        self,
-        tg_id: str,
-        session: AsyncSession,
-    ) -> User | None:
-        """Возвращает пользователя по Telegram ID."""
-        return await self._get_by_field(User.tg_id, tg_id, session)
+        Returns:
+            Список пользователей, у которых обнаружены конфликтующие данные.
+            Если конфликтов не найдено или не передано ни одного
+            параметра для проверки, возвращает пустой список.
+        """
+        conditions: list[dict[str, Any]] = []
+
+        if username:
+            conditions.append(
+                {'field': 'username', 'op': 'eq', 'value': username}
+            )
+        if email:
+            conditions.append({'field': 'email', 'op': 'eq', 'value': email})
+        if phone:
+            conditions.append({'field': 'phone', 'op': 'eq', 'value': phone})
+        if tg_id:
+            conditions.append({'field': 'tg_id', 'op': 'eq', 'value': tg_id})
+
+        if not conditions:
+            return []
+
+        filters: list[dict[str, Any]] = [
+            {
+                'logic': 'or',
+                'conditions': conditions,
+            }
+        ]
+
+        if exclude_user_id is not None:
+            filters.append(
+                {
+                    'field': 'id',
+                    'op': 'ne',
+                    'value': exclude_user_id,
+                }
+            )
+
+        return await self.get_multi(filters=filters, session=session)
 
     async def get_managers_by_ids(
         self,
@@ -123,7 +164,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         Args:
             field: Атрибут модели User (например, User.email).
             value: Значение поля для поиска.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Пользователь или None, если запись не найдена.

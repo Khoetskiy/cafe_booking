@@ -493,61 +493,32 @@ class UserService:
             HTTPException:
                 - 409: Если найден конфликт уникальных данных.
         """
-        if user_in.username:
-            user = await user_crud.get_by_username(
-                username=user_in.username,
-                session=session,
-            )
-            if user and user.id != exclude_user_id:
-                logger.warning(
-                    'Конфликт уникальности: username=%s',
-                    user_in.username,
-                )
+        conflicting_users = await user_crud.find_conflicting_users(
+            username=user_in.username,
+            email=user_in.email,
+            phone=user_in.phone,
+            tg_id=user_in.tg_id,
+            exclude_user_id=exclude_user_id,
+            session=session,
+        )
+
+        for user in conflicting_users:
+            if user.username == user_in.username:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=USER_CONFLICT_DETAIL,
                 )
-
-        if user_in.email:
-            user = await user_crud.get_by_email(
-                email=user_in.email,
-                session=session,
-            )
-            if user and user.id != exclude_user_id:
-                logger.warning(
-                    'Конфликт уникальности: email=%s',
-                    user_in.email,
-                )
+            if user.email == user_in.email:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=USER_CONFLICT_DETAIL,
                 )
-
-        if user_in.phone:
-            user = await user_crud.get_by_phone(
-                phone=user_in.phone,
-                session=session,
-            )
-            if user and user.id != exclude_user_id:
-                logger.warning(
-                    'Конфликт уникальности: phone=%s',
-                    user_in.phone,
-                )
+            if user.phone == user_in.phone:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=USER_CONFLICT_DETAIL,
                 )
-
-        if user_in.tg_id:
-            user = await user_crud.get_by_tg_id(
-                tg_id=user_in.tg_id,
-                session=session,
-            )
-            if user and user.id != exclude_user_id:
-                logger.warning(
-                    'Конфликт уникальности: tg_id=%s',
-                    user_in.tg_id,
-                )
+            if user.tg_id == user_in.tg_id:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=USER_CONFLICT_DETAIL,
