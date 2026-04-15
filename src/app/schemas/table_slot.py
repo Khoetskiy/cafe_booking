@@ -9,10 +9,12 @@ class TableSlot(BaseModel):
 
     table_id: int = Field(
         ...,
+        ge=1,
         description='ID стола',
     )
     slot_id: int = Field(
         ...,
+        ge=1,
         description='ID временного слота',
     )
 
