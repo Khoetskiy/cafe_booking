@@ -16,43 +16,6 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     (username, email, phone). Не содержит HTTP или бизнес-логики.
     """
 
-    async def _get_by_field(
-        self,
-        field: InstrumentedAttribute,
-        value: Any,
-        session: AsyncSession,
-    ) -> User | None:
-        """Возвращает пользователя по значению указанного поля.
-
-        Приватный универсальный метод для выборки пользователя
-        по уникальному полю модели User.
-
-        Args:
-            field: Атрибут модели User (например, User.email).
-            value: Значение поля для поиска.
-            session: Асинхронная SQLAlchemy-сессия.
-
-        Returns:
-            Пользователь или None, если запись не найдена.
-        """
-        field_name = getattr(field, 'key', None)
-        if field_name not in User.__mapper__.columns.keys():  # noqa: SIM118
-            msg = f'Недопустимое поле User: {field_name}'
-            raise ValueError(msg)
-
-        # Do not query nullable unique fields by None or blank strings:
-        # multiple users may have NULL in such columns, so this lookup
-        # must only run for actual values.
-        if value is None:
-            return None
-
-        if isinstance(value, str) and not value.strip():
-            return None
-
-        stmt = select(User).where(field == value)
-        result = await session.execute(stmt)
-        return result.scalar_one_or_none()
-
     async def get_by_username(
         self,
         username: str,
@@ -118,6 +81,43 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             ],
             session=session,
         )
+
+    async def _get_by_field(
+        self,
+        field: InstrumentedAttribute,
+        value: Any,
+        session: AsyncSession,
+    ) -> User | None:
+        """Возвращает пользователя по значению указанного поля.
+
+        Приватный универсальный метод для выборки пользователя
+        по уникальному полю модели User.
+
+        Args:
+            field: Атрибут модели User (например, User.email).
+            value: Значение поля для поиска.
+            session: Асинхронная SQLAlchemy-сессия.
+
+        Returns:
+            Пользователь или None, если запись не найдена.
+        """
+        field_name = getattr(field, 'key', None)
+        if field_name not in User.__mapper__.columns.keys():  # noqa: SIM118
+            msg = f'Недопустимое поле User: {field_name}'
+            raise ValueError(msg)
+
+        # Do not query nullable unique fields by None or blank strings:
+        # multiple users may have NULL in such columns, so this lookup
+        # must only run for actual values.
+        if value is None:
+            return None
+
+        if isinstance(value, str) and not value.strip():
+            return None
+
+        stmt = select(User).where(field == value)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 
 
 user_crud = CRUDUser(User)
