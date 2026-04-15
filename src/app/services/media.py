@@ -27,7 +27,7 @@ class MediaService:
     - получение пути к сохранённому изображению.
     """
 
-    ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES
+    READ_CHUNK_SIZE = 64 * 1024
 
     def __init__(self, media_dir: Path, max_image_size: int) -> None:
         """Инициализирует сервис работы с медиафайлами.
@@ -87,23 +87,15 @@ class MediaService:
                 - Если файл не является валидным изображением.
                 - Если произошла ошибка при сохранении файла.
         """
-        if file.content_type not in self.ALLOWED_CONTENT_TYPES:
+        if file.content_type not in ALLOWED_CONTENT_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Поддерживаются только JPG и PNG',
             )
 
-        content = await file.read(self._max_image_size + 1)
-        if len(content) > self._max_image_size:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f'Файл слишком большой (максимум {MAX_IMAGE_SIZE_READ} МБ)'
-                ),
-            )
-
         try:
-            image = Image.open(io.BytesIO(content))
+            image_buffer = await self._read_image_chunks(file)
+            image = Image.open(image_buffer)
             image = image.convert('RGB')
         except Exception:
             raise HTTPException(
@@ -123,6 +115,42 @@ class MediaService:
             )
 
         return image_id
+
+    async def _read_image_chunks(self, file: UploadFile) -> io.BytesIO:
+        """Читает загружаемый файл чанками с контролем размера.
+
+        Прерывает чтение сразу после превышения допустимого лимита, чтобы
+        не загружать весь файл в память целиком.
+
+        Args:
+            file: Загружаемый файл изображения.
+
+        Returns:
+            Буфер с содержимым файла, готовый для передачи в Pillow.
+
+        Raises:
+            HTTPException:
+                - 400: Если размер файла превышает допустимый лимит.
+        """
+        total_size = 0
+        buffer = io.BytesIO()
+
+        while chunk := await file.read(self.READ_CHUNK_SIZE):
+            total_size += len(chunk)
+
+            if total_size > self._max_image_size:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f'Файл слишком большой '
+                        f'(максимум {MAX_IMAGE_SIZE_READ} МБ)'
+                    ),
+                )
+
+            buffer.write(chunk)
+
+        buffer.seek(0)
+        return buffer
 
 
 media_service = MediaService(
