@@ -38,7 +38,7 @@ class CRUDBooking(CRUDBase[Booking, BookingCreate, BookingUpdate]):
             slot_ids: Множество идентификаторов временных слотов.
             exclude_booking_id: Идентификатор бронирования,
                         которое нужно исключить из выборки.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Список конфликтующих объектов Booking.
@@ -82,7 +82,7 @@ class CRUDBooking(CRUDBase[Booking, BookingCreate, BookingUpdate]):
         Args:
             booking_id: Идентификатор бронирования.
             tables_slots: Новый список ORM-объектов `TableSlotBooking`.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         """
         await session.execute(

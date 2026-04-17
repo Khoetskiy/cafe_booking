@@ -38,7 +38,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         Args:
             obj_id: Идентификатор объекта.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Объект модели или None, если объект не найден.
@@ -82,7 +82,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         Args:
             filters: Список описаний фильтров или None.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
             options: Последовательность ORM-опций загрузки (`Load`), например
                 `selectinload(Model.relation)`, `joinedload(Model.relation)`,
                 которые могут быть применены к запросу через `stmt.options()`.

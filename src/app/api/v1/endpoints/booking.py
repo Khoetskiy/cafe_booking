@@ -196,7 +196,7 @@ async def create_booking(
     Args:
         booking_in: Данные для создания бронирования.
         user: Текущий авторизованный пользователь.
-        session: Асинхронная SQLAlchemy-сессия.
+        session: Асинхронная сессия SQLAlchemy.
 
     Returns:
         Информация о созданном бронировании.
@@ -250,7 +250,7 @@ async def get_booking_by_id(
     Args:
         booking_id: Идентификатор бронирования.
         user: Текущий авторизованный пользователь.
-        session: Асинхронная SQLAlchemy-сессия.
+        session: Асинхронная сессия SQLAlchemy.
 
     Returns:
         Информация о бронировании.
@@ -308,7 +308,7 @@ async def update(
         booking_id: Идентификатор бронирования.
         booking_in: Данные для обновления бронирования.
         user: Текущий авторизованный пользователь.
-        session: Асинхронная SQLAlchemy-сессия.
+        session: Асинхронная сессия SQLAlchemy.
 
     Returns:
         Информация об обновлённом бронировании.

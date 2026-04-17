@@ -34,7 +34,7 @@ class CRUDTable(CRUDBase[Table, TableCreate, TableUpdate]):
             cafe_id: Идентификатор кафе.
             show_all: Если True — возвращает все столы, иначе только активные.
             options: Опции eager loading для ORM-запроса.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Список столов.
@@ -64,7 +64,7 @@ class CRUDTable(CRUDBase[Table, TableCreate, TableUpdate]):
             table_id: Идентификатор стола.
             cafe_id: Идентификатор кафе.
             options: Опции eager loading для ORM-запроса.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Объект Table или None, если стол не найден.

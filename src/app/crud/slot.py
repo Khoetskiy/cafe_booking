@@ -39,7 +39,7 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
         Args:
             cafe_id: Идентификатор кафе.
             show_all: Если True — возвращает все слоты, иначе только активные.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Список временных слотов.
@@ -62,7 +62,7 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
         Args:
             slot_id: Идентификатор слота.
             cafe_id: Идентификатор кафе.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Слот или None, если не найден.
@@ -94,7 +94,7 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
             cafe_id: Идентификатор кафе.
             start_time: Время начала слота.
             end_time: Время окончания слота.
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Слот, если найден, иначе None.
@@ -134,7 +134,7 @@ class CRUDSlot(CRUDBase[Slot, TimeSlotCreate, TimeSlotUpdate]):
             end_time: Время окончания проверяемого интервала.
             exclude_slot_id: ID слота, который необходимо исключить
                         из проверки (используется при обновлении слота).
-            session: Асинхронная SQLAlchemy-сессия.
+            session: Асинхронная сессия SQLAlchemy.
 
         Returns:
             Список активных слотов, пересекающихся с заданным интервалом.

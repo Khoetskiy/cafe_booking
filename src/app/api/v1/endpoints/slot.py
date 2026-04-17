@@ -66,7 +66,7 @@ async def get_time_slots_list(
         cafe_id: Идентификатор кафе.
         show_all: Флаг показа всех слотов, включая неактивные.
         user: Текущий аутентифицированный пользователь.
-        session: Асинхронная SQLAlchemy-сессия.
+        session: Асинхронная сессия SQLAlchemy.
 
     Returns:
         Список слотов кафе.
@@ -116,7 +116,7 @@ async def create_time_slot(
         cafe_id: Идентификатор кафе, в котором создаётся слот.
         slot_in: Данные для создания слота.
         user: Текущий аутентифицированный пользователь.
-        session: Асинхронная SQLAlchemy-сессия.
+        session: Асинхронная сессия SQLAlchemy.
 
     Returns:
         Информация о созданном слоте.
