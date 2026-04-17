@@ -3,7 +3,6 @@ from .booking import BookingCreate, BookingInfo, BookingUpdate
 from .cafe import CafeCreate, CafeInfo, CafeShortInfo, CafeUpdate
 from .error import ErrorResponse
 from .media import (
-    MediaData,
     MediaDeletedInfo,
     MediaInfo,
     MediaItem,
@@ -35,7 +34,6 @@ __all__ = [
     'CafeShortInfo',
     'CafeUpdate',
     'ErrorResponse',
-    'MediaData',
     'MediaDeletedInfo',
     'MediaInfo',
     'MediaItem',

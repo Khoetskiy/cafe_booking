@@ -1,13 +1,6 @@
 from uuid import UUID
 
-from fastapi import UploadFile
 from pydantic import BaseModel, Field
-
-
-class MediaData(BaseModel):  # FIXME: почему не используется?
-    """Схема для загрузки медиафайла."""
-
-    file: UploadFile = Field(..., title='Загружаемый файл')
 
 
 class MediaInfo(BaseModel):
