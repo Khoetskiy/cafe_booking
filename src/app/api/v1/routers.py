@@ -29,12 +29,12 @@ api_v1_router.include_router(
 )
 api_v1_router.include_router(
     tables_router,
-    prefix='/cafe/{cafe_id}/tables',
+    prefix='/cafes/{cafe_id}/tables',
     tags=['Столы'],
 )
 api_v1_router.include_router(
     slots_router,
-    prefix='/cafe/{cafe_id}/time_slots',
+    prefix='/cafes/{cafe_id}/time_slots',
     tags=['Временные слоты'],
 )
 api_v1_router.include_router(

@@ -8,6 +8,7 @@ from app.api.dependencies import (
     DbSession,
 )
 from app.api.v1.docs.table import (
+    TABLE_ACTIVATE_DESCRIPTION,
     TABLE_CREATE_DESCRIPTION,
     TABLE_DEACTIVATE_DESCRIPTION,
     TABLE_GET_BY_ID_DESCRIPTION,
@@ -42,7 +43,13 @@ router = APIRouter()
     },
 )
 async def get_tables_list(
-    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    cafe_id: Annotated[
+        int,
+        Path(
+            description='ID кафе',
+            ge=1,
+        ),
+    ],
     show_all: Annotated[
         bool,
         Query(
@@ -100,7 +107,13 @@ async def get_tables_list(
     description=TABLE_CREATE_DESCRIPTION,
 )
 async def create_table(
-    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
+    cafe_id: Annotated[
+        int,
+        Path(
+            description='ID кафе',
+            ge=1,
+        ),
+    ],
     table_in: TableCreate,
     user: CurrentAdminOrManager,
     session: DbSession,
@@ -145,7 +158,7 @@ async def create_table(
 @router.get(
     '/{table_id}',
     response_model=TableInfo,
-    summary='Информация о столе в кафе по его ID',
+    summary='Информация о столе в кафе по ID',
     description=TABLE_GET_BY_ID_DESCRIPTION,
     responses={
         **OK_RESPONSE,
@@ -156,8 +169,20 @@ async def create_table(
     },
 )
 async def get_table_by_id(
-    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
-    table_id: Annotated[int, Path(description='ID стола', ge=1)],
+    cafe_id: Annotated[
+        int,
+        Path(
+            description='ID кафе',
+            ge=1,
+        ),
+    ],
+    table_id: Annotated[
+        int,
+        Path(
+            description='ID стола',
+            ge=1,
+        ),
+    ],
     user: CurrentActiveUser,
     session: DbSession,
 ) -> TableInfo:
@@ -196,7 +221,7 @@ async def get_table_by_id(
 @router.patch(
     '/{table_id}',
     response_model=TableInfo,
-    summary='Обновление информации о столе в кафе по его ID',
+    summary='Обновление информации о столе в кафе по ID',
     description=TABLE_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
@@ -207,8 +232,20 @@ async def get_table_by_id(
     },
 )
 async def update_table(
-    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
-    table_id: Annotated[int, Path(description='ID стола', ge=1)],
+    cafe_id: Annotated[
+        int,
+        Path(
+            description='ID кафе',
+            ge=1,
+        ),
+    ],
+    table_id: Annotated[
+        int,
+        Path(
+            description='ID стола',
+            ge=1,
+        ),
+    ],
     table_in: TableUpdate,
     user: CurrentAdminOrManager,
     session: DbSession,
@@ -216,7 +253,7 @@ async def update_table(
     """Обновляет данные стола по его идентификатору.
 
     Позволяет частично обновить параметры стола
-    (описание, количество посадочных мест, статус активности).
+    (описание, количество посадочных мест).
 
     Доступ предоставляется:
     - администраторам — для любого кафе;
@@ -241,7 +278,7 @@ async def update_table(
         HTTPException:
             - 403: Если у пользователя недостаточно прав.
             - 404: Если кафе или стол не найдены.
-            - 422: Если количество мест некорректно.
+            - 400 / 422: Если количество мест некорректно.
     """
     return await table_service.update_table(
         cafe_id=cafe_id,
@@ -252,11 +289,73 @@ async def update_table(
     )
 
 
-@router.delete(
-    '/{table_id}',
+@router.post(
+    '/{table_id}/activate',
     status_code=status.HTTP_200_OK,
     response_model=TableInfo,
-    summary='Деактивировать стол',
+    summary='Активировать стол по ID',
+    description=TABLE_ACTIVATE_DESCRIPTION,
+    responses={
+        **OK_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **CONFLICT_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def activate_table(
+    cafe_id: Annotated[
+        int,
+        Path(
+            description='ID кафе',
+            ge=1,
+        ),
+    ],
+    table_id: Annotated[
+        int,
+        Path(
+            description='ID стола',
+            ge=1,
+        ),
+    ],
+    user: CurrentAdminOrManager,
+    session: DbSession,
+) -> TableInfo:
+    """Активирует стол по ID.
+
+    Доступно:
+    - администраторам;
+    - менеджерам кафе, к которому относится стол.
+
+    Args:
+        cafe_id: Идентификатор кафе, к которому относится стол.
+        table_id: Идентификатор стола для активации.
+        user: Текущий аутентифицированный пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Объект с обновленной информацией о столе.
+
+    Raises:
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если кафе или стол не найдены.
+            - 409: Если стол уже активирован.
+    """
+    return await table_service.activate_table(
+        cafe_id=cafe_id,
+        table_id=table_id,
+        user=user,
+        session=session,
+    )
+
+
+@router.post(
+    '/{table_id}/deactivate',
+    status_code=status.HTTP_200_OK,
+    response_model=TableInfo,
+    summary='Деактивировать стол по ID',
     description=TABLE_DEACTIVATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
@@ -268,12 +367,28 @@ async def update_table(
     },
 )
 async def deactivate_table(
-    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
-    table_id: Annotated[int, Path(description='ID стола', ge=1)],
+    cafe_id: Annotated[
+        int,
+        Path(
+            description='ID кафе',
+            ge=1,
+        ),
+    ],
+    table_id: Annotated[
+        int,
+        Path(
+            description='ID стола',
+            ge=1,
+        ),
+    ],
     user: CurrentAdminOrManager,
     session: DbSession,
 ) -> TableInfo:
     """Деактивирует стол по ID.
+
+    Доступно:
+    - администраторам;
+    - менеджерам кафе, к которому относится стол.
 
     Args:
         cafe_id: Идентификатор кафе, к которому относится стол.

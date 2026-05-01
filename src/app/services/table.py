@@ -241,7 +241,7 @@ class TableService:
             HTTPException:
                 - 403: Если у пользователя недостаточно прав.
                 - 404: Если кафе или стол не найдены.
-                - 422: Если количество мест некорректно.
+                - 400 / 422: Если количество мест некорректно.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -271,6 +271,63 @@ class TableService:
 
         return table
 
+    async def activate_table(
+        self,
+        cafe_id: int,
+        table_id: int,
+        user: User,
+        session: AsyncSession,
+    ) -> Table:
+        """Активирует стол по его ID.
+
+        Выполняет активацию стола путём установки `is_active=True`.
+
+        Доступно:
+        - администраторам;
+        - менеджерам кафе, к которому относится стол.
+
+        Args:
+            cafe_id: Идентификатор кафе.
+            table_id: Идентификатор стола.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Активированный объект Table.
+
+        Raises:
+            HTTPException:
+                - 403: Если у пользователя нет прав.
+                - 404: Если кафе или стол не найдены.
+                - 409: Если стол уже активирован.
+        """
+        cafe = await get_cafe_or_404(cafe_id, session)
+
+        self._ensure_manage_permission(user, cafe)
+
+        table = await self._get_table_or_404(
+            table_id=table_id,
+            cafe_id=cafe.id,
+            session=session,
+        )
+
+        if table.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Стол уже активирован',
+            )
+
+        table = await table_crud.activate(table, session)
+        await session.refresh(table, attribute_names=['cafe'])
+
+        logger.info(
+            'Стол активирован: %s',
+            table.__repr__(),
+            extra={'user': f'{user.username} id={user.id}'},
+        )
+
+        return table
+
     async def deactivate_table(
         self,
         cafe_id: int,
@@ -278,10 +335,10 @@ class TableService:
         user: User,
         session: AsyncSession,
     ) -> Table:
-        """Деактивирует стол.
+        """Деактивирует стол по его ID.
 
         Выполняет soft delete стола путём установки `is_active = False`.
-        Стол не удаляется физически из базы данных.
+        Объект стола не удаляется физически из базы данных.
 
         Доступно:
         - администраторам;

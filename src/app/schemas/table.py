@@ -45,7 +45,6 @@ class TableUpdate(DescriptionValidateMixin, BaseModel):
         examples=['Стол у окна на 4 места'],
         description='Описание или характеристика стола',
     )
-    is_active: bool | None = Field(None, description='Флаг активности стола')
 
     model_config = ConfigDict(extra='forbid')
 
