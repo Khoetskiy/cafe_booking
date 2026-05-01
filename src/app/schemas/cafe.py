@@ -53,8 +53,9 @@ class CafeCreate(CafeBase, DescriptionValidateMixin, PhoneValidationMixin):
 
     managers_id: list[int] = Field(
         ...,
-        min_length=1,
-        description='Список ID пользователей, назначаемых менеджерами кафе',
+        min_length=1,  # A new cafe must have at least one manager assigned.
+        examples=[[1]],
+        description='ID менеджеров, назначаемых кафе при создании',
     )
 
     model_config = ConfigDict(extra='forbid')
@@ -89,13 +90,18 @@ class CafeUpdate(DescriptionValidateMixin, PhoneValidationMixin, BaseModel):
         None,
         description='UUID фотографии кафе',
     )
-    managers_id: list[int] | None = Field(
-        None,
-        description='Список ID пользователей, назначаемых менеджерами кафе',
-    )
-    is_active: bool | None = Field(
-        None,
-        description='Флаг активности кафе',
+
+    model_config = ConfigDict(extra='forbid')
+
+
+class CafeManagersUpdate(BaseModel):
+    """Схема для изменения списка менеджеров кафе."""
+
+    managers_id: list[int] = Field(
+        ...,
+        min_length=0,  # An empty list is allowed to unassign all managers.
+        examples=[[1]],
+        description='Новый полный список ID менеджеров кафе',
     )
 
     model_config = ConfigDict(extra='forbid')

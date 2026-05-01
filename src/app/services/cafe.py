@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud import cafe_crud, user_crud
 from app.models import Cafe, User, UserRole
 from app.schemas import CafeCreate
-from app.schemas.cafe import CafeUpdate
+from app.schemas.cafe import CafeManagersUpdate, CafeUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -265,25 +265,18 @@ class CafeService:
         user: User,
         session: AsyncSession,
     ) -> Cafe:
-        """Обновляет данные кафе и список его менеджеров с учётом прав доступа.
+        """Обновляет данные кафе с учётом прав доступа.
 
         Доступ:
         - Администратор может обновлять любое кафе.
         - Менеджер может обновлять только то кафе, к которому он привязан.
         - Обычный пользователь не имеет доступа к обновлению кафе.
 
-        Метод:
-        - проверку существования кафе;
-        - проверку прав доступа пользователя к данному кафе;
-        - проверку уникальности (name, address), если они меняются;
-        - обновление основных полей кафе;
-        - обновление списка менеджеров (если передан `managers_id`).
-
-        Правила:
-        - Менеджеры могут быть привязаны только к одному кафе;
-        - При обновлении разрешено сохранять менеджеров,
-                            уже привязанных к текущему кафе;
-        - Операция выполняется атомарно.
+        Метод выполняет:
+        - Проверку существования кафе;
+        - Проверку прав доступа пользователя к данному кафе;
+        - Проверку уникальности (name, address), если они меняются;
+        - Обновление основных полей кафе;
 
         Args:
             cafe_id: Идентификатор обновляемого кафе.
@@ -298,7 +291,7 @@ class CafeService:
             HTTPException:
                 - 403: Если менеджер не относится к данному кафе.
                 - 404: Если кафе не найдено.
-                - 400 / 409: Если нарушены бизнес-правила.
+                - 409: Если кафе с таким названием или адресом уже существует.
         """
         cafe = await get_cafe_or_404(cafe_id, session)
 
@@ -322,23 +315,124 @@ class CafeService:
             session=session,
         )
 
-        if cafe_in.managers_id is not None:
-            managers = await self._get_and_validate_managers(
-                cafe_in.managers_id,
-                current_cafe_id=cafe.id,
-                session=session,
-            )
-            self._update_cafe_managers(
-                cafe=cafe,
-                new_managers=managers,
-                session=session,
-            )
-
         await session.commit()
         await session.refresh(cafe)
 
         logger.info(
             'Кафе обновлено: %s',
+            cafe.__repr__(),
+            extra={'user': f'{user.username} id={user.id}'},
+        )
+
+        return cafe
+
+    async def update_cafe_managers(
+        self,
+        cafe_id: int,
+        cafe_in: CafeManagersUpdate,
+        user: User,
+        session: AsyncSession,
+    ) -> Cafe:
+        """Обновляет список менеджеров кафе.
+
+        Доступ:
+        - Администратор может обновлять список менеджеров в любом кафе.
+        - Менеджер и обычный пользователь не имеют доступа к изменению
+                                            списка менеджеров любого кафе.
+
+        Метод выполняет:
+        - Проверку прав доступа пользователя;
+        - Проверку существования кафе;
+        - Валидацию менеджеров по списку идентификаторов;
+        - Обновление списка менеджеров.
+
+        Правила:
+        - Менеджер может быть привязан только к одному кафе;
+        - Разрешено сохранять менеджеров, уже привязанных к текущему кафе;
+        - Разрешено удалять всех менеджеров кафе.
+
+        Args:
+            cafe_id: Идентификатор обновляемого кафе.
+            cafe_in: Данные для обновления списка менеджеров кафе.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Обновлённый объект Cafe.
+
+        Raises:
+            HTTPException:
+                - 400: Если пользователь не существует, или роль не MANAGER.
+                - 403: Если у пользователя недостаточно прав.
+                - 404: Если кафе не найдено.
+                - 409: Если менеджер уже привязан к другому кафе.
+        """
+        self._ensure_admin_permission(user)
+
+        cafe = await get_cafe_or_404(cafe_id, session)
+
+        managers = await self._get_and_validate_managers(
+            cafe_in.managers_id,
+            current_cafe_id=cafe.id,
+            session=session,
+        )
+
+        self._update_cafe_managers(
+            cafe=cafe,
+            new_managers=managers,
+            session=session,
+        )
+
+        await session.commit()
+        await session.refresh(cafe)
+
+        logger.info(
+            'Список менеджеров кафе обновлен: %s',
+            cafe.__repr__(),
+            extra={'user': f'{user.username} id={user.id}'},
+        )
+
+        return cafe
+
+    async def activate_cafe(
+        self,
+        cafe_id: int,
+        user: User,
+        session: AsyncSession,
+    ) -> Cafe:
+        """Активирует кафе по его ID.
+
+        Выполняет активацию кафе путём установки `is_active=True`.
+        Доступно только администраторам.
+
+        Args:
+            cafe_id: Идентификатор кафе для активации.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Активированный объект Cafe.
+
+        Raises:
+            HTTPException:
+                - 403: Если недостаточно прав.
+                - 404: Если кафе не найдено.
+                - 409: Если кафе уже активировано.
+        """
+        self._ensure_admin_permission(user)
+
+        cafe = await get_cafe_or_404(cafe_id, session)
+
+        if cafe.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Кафе уже активировано',
+            )
+
+        cafe = await cafe_crud.activate(cafe, session)
+
+        logger.info(
+            'Кафе активировано: %s',
             cafe.__repr__(),
             extra={'user': f'{user.username} id={user.id}'},
         )
@@ -351,9 +445,9 @@ class CafeService:
         user: User,
         session: AsyncSession,
     ) -> Cafe:
-        """Деактивирует кафе.
+        """Деактивирует кафе по его ID.
 
-        Выполняет soft delete кафе путём установки `is_active = False`.
+        Выполняет soft delete кафе путём установки `is_active=False`.
         Кафе не удаляется физически из базы данных.
         Доступно только администраторам.
 
@@ -421,7 +515,7 @@ class CafeService:
         Raises:
             HTTPException:
                 - 400: Если один или несколько пользователей не существуют,
-                                                или не являются менеджерами;
+                                                или не имеют роль MANAGER.
                 - 409: Если менеджер уже привязан к другому кафе.
         """
         managers: list[User] = await user_crud.get_managers_by_ids(
@@ -433,8 +527,8 @@ class CafeService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    'Один или несколько менеджеров не существуют '
-                    'или не являются менеджерами'
+                    'Один или несколько пользователей не существуют '
+                    'или не имеют роль менеджера'
                 ),
             )
 
