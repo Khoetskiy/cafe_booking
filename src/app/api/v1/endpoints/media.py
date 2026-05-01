@@ -132,7 +132,7 @@ async def upload_image(
 
 @router.get(
     '/{media_id}',
-    summary='Возвращает изображение в бинарном формате по его UUID',
+    summary='Возвращает изображение в бинарном формате по UUID',
     dependencies=[Depends(current_active_user)],
     responses={
         **MEDIA_OK_RESPONSE,
@@ -176,7 +176,7 @@ async def get_image(
     '/{media_id}',
     response_model=MediaDeletedInfo,
     status_code=status.HTTP_200_OK,
-    summary='Удалить изображение',
+    summary='Удалить изображение по UUID',
     description=MEDIA_DELETE_IMAGE_DESCRIPTION,
     dependencies=[Depends(current_admin)],
     responses={

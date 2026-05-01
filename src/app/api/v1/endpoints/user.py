@@ -207,7 +207,7 @@ async def update_me(
 @router.get(
     '/{user_id}',
     response_model=UserInfo,
-    summary='Получение информации о пользователе по его ID',
+    summary='Получение информации о пользователе по ID',
     description=USER_GET_BY_ID_DESCRIPTION,
     responses={
         **OK_RESPONSE,
@@ -256,7 +256,7 @@ async def get_user_by_id(
 @router.patch(
     '/{user_id}',
     response_model=UserInfo,
-    summary='Обновление информации о пользователе по его ID',
+    summary='Обновление информации о пользователе по ID',
     description=USER_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
@@ -314,7 +314,7 @@ async def update_user(
 @router.patch(
     '/{user_id}/role',
     response_model=UserInfo,
-    summary='Обновление роли пользователя по его ID',
+    summary='Обновление роли пользователя по ID',
     description=USER_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,

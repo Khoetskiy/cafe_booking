@@ -138,7 +138,7 @@ async def create_time_slot(
 @router.get(
     '/{slot_id}',
     response_model=TimeSlotInfo,
-    summary='Информация о временном слоте в кафе по его ID',
+    summary='Информация о временном слоте в кафе по ID',
     description=SLOT_GET_BY_ID_DESCRIPTION,
     responses={
         **OK_RESPONSE,
@@ -188,7 +188,7 @@ async def get_time_slot_by_id(
 @router.patch(
     '/{slot_id}',
     response_model=TimeSlotInfo,
-    summary='Обновление информации о временном слоте в кафе по его ID',
+    summary='Обновление информации о временном слоте в кафе по ID',
     description=SLOT_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
@@ -251,7 +251,7 @@ async def update_time_slot(
     '/{slot_id}',
     status_code=status.HTTP_200_OK,
     response_model=TimeSlotInfo,
-    summary='Деактивировать временный слот',
+    summary='Деактивировать временный слот по ID',
     description=SLOT_DEACTIVATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,

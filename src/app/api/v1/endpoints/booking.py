@@ -218,7 +218,7 @@ async def create_booking(
 @router.get(
     '/{booking_id}',
     response_model=BookingInfo,
-    summary='Получение информации о бронировании по его ID',
+    summary='Получение информации о бронировании по ID',
     description=BOOKING_GET_BY_ID_DESCRIPTION,
     responses={
         **OK_RESPONSE,
@@ -271,7 +271,7 @@ async def get_booking_by_id(
 @router.patch(
     '/{booking_id}',
     response_model=BookingInfo,
-    summary='Обновление информации о бронировании по его ID',
+    summary='Обновление информации о бронировании по ID',
     description=BOOKING_UPDATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
@@ -334,7 +334,7 @@ async def update(
     '/{booking_id}',
     status_code=status.HTTP_200_OK,
     response_model=BookingInfo,
-    summary='Деактивировать бронирование',
+    summary='Деактивировать бронирование по ID',
     description=BOOKING_DEACTIVATE_DESCRIPTION,
     responses={
         **OK_RESPONSE,
