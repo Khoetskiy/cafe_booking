@@ -152,9 +152,11 @@ async def can_create_user(
 
     Разрешает создание пользователя в следующих случаях:
     - пользователь не авторизован (регистрация);
-    - пользователь авторизован и имеет роль ADMIN или MANAGER.
+    - пользователь авторизован и имеет роль ADMIN.
 
-    Запрещает создание пользователя авторизованному пользователю с ролью USER.
+    Запрещает создание пользователя:
+    - авторизованному пользователю с ролью USER;
+    - авторизованному пользователю с ролью MANAGER.
 
     Args:
         current_user: Текущий пользователь или None,
@@ -168,7 +170,7 @@ async def can_create_user(
     if current_user is None:
         return None
 
-    if current_user.role in {UserRole.ADMIN, UserRole.MANAGER}:
+    if current_user.role == UserRole.ADMIN:
         return current_user
 
     raise HTTPException(

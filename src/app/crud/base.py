@@ -211,6 +211,28 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await session.refresh(db_obj)
         return db_obj
 
+    async def activate(
+        self,
+        db_obj: ModelType,
+        session: AsyncSession,
+    ) -> ModelType:
+        """Выполняет активацию объекта.
+
+        Метод активирует ранее деактивированный объект,
+        путем установки значения для поля `is_active=True`.
+
+        Args:
+            db_obj: ORM-объект для активации.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Обновлённый объект.
+        """
+        db_obj.is_active = True
+        await session.commit()
+        await session.refresh(db_obj)
+        return db_obj
+
     async def soft_delete(
         self,
         db_obj: ModelType,

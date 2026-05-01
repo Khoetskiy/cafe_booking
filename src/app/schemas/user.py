@@ -69,6 +69,25 @@ class UserBase(BaseModel):
         max_length=MAX_LENGTH_USER_TG_ID,
     )
 
+    model_config = ConfigDict(extra='forbid')
+
+
+class UserUpdateBase(UserBase):
+    """Базовая схема для обновления пользователя."""
+
+    password: str | None = Field(
+        None,
+        min_length=MIN_LENGTH_USER_PASSWORD,
+        description='Новый пароль',
+    )
+
+    @model_validator(mode='after')
+    def validate_not_empty(self) -> 'UserUpdateBase':
+        """Проверяет, что передано хотя бы одно поле."""
+        if not any(self.model_dump(exclude_unset=True).values()):
+            raise ValueError('Хотя бы одно поле должно быть передано')
+        return self
+
 
 class UserCreate(UserBase, PasswordValidationMixin, PhoneValidationMixin):
     """Схема для создания нового пользователя."""
@@ -93,32 +112,28 @@ class UserCreate(UserBase, PasswordValidationMixin, PhoneValidationMixin):
         return self
 
 
-class UserUpdate(UserBase, PasswordValidationMixin, PhoneValidationMixin):
-    """Схема для обновления данных пользователя."""
-
-    role: UserRole | None = Field(
-        None,
-        description='Роль пользователя',
-    )
-    is_active: bool | None = Field(
-        None,
-        description='Активен ли пользователь',
-    )
-    password: str | None = Field(
-        None,
-        min_length=MIN_LENGTH_USER_PASSWORD,
-        description='Новый пароль',
-    )
-
-
-class UserUpdateMe(UserBase, PasswordValidationMixin, PhoneValidationMixin):
+class UserUpdateMe(
+    UserUpdateBase, PasswordValidationMixin, PhoneValidationMixin
+):
     """Схема для обновления данных текущего пользователя."""
 
-    password: str | None = Field(
-        None,
-        min_length=MIN_LENGTH_USER_PASSWORD,
-        description='Новый пароль',
+
+class UserUpdate(
+    UserUpdateBase, PasswordValidationMixin, PhoneValidationMixin
+):
+    """Схема для обновления данных пользователя (доступно администраторам)."""
+
+
+class UserUpdateRole(BaseModel):
+    """Схема для обновления роли пользователя (доступно администраторам)."""
+
+    role: UserRole = Field(
+        ...,
+        examples=['manager'],
+        description='Роль пользователя',
     )
+
+    model_config = ConfigDict(extra='forbid')
 
 
 class UserInfo(UserBase):

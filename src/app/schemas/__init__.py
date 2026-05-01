@@ -21,7 +21,14 @@ from .table import (
     TableUpdate,
 )
 from .table_slot import TableSlot, TableSlotInfo
-from .user import UserCreate, UserInfo, UserShortInfo, UserUpdate, UserUpdateMe
+from .user import (
+    UserCreate,
+    UserInfo,
+    UserShortInfo,
+    UserUpdate,
+    UserUpdateMe,
+    UserUpdateRole,
+)
 
 __all__ = [
     'AuthData',
@@ -53,4 +60,5 @@ __all__ = [
     'UserShortInfo',
     'UserUpdate',
     'UserUpdateMe',
+    'UserUpdateRole',
 ]

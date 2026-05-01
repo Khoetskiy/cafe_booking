@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security.passwords import get_password_hash
 from app.crud import user_crud
 from app.models import User, UserRole
-from app.schemas import UserCreate, UserUpdate, UserUpdateMe
+from app.schemas import UserCreate, UserUpdate, UserUpdateMe, UserUpdateRole
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class UserService:
     ) -> User:
         """Возвращает пользователя по ID.
 
-        Доступно только администраторам и менеджерам.
+        Доступно только администраторам.
 
         Args:
             user_id: Идентификатор пользователя.
@@ -49,7 +49,7 @@ class UserService:
                 - 403: Если у пользователя нет прав.
                 - 404: Если пользователь не найден.
         """
-        self._ensure_manage_permission(current_user)
+        self._ensure_admin_permission(current_user)
 
         user = await self._get_user_or_404(user_id, session)
 
@@ -68,7 +68,7 @@ class UserService:
     ) -> list[User]:
         """Возвращает список всех пользователей.
 
-        Доступно только администраторам и менеджерам.
+        Доступно только администраторам.
 
         Args:
             current_user: Текущий пользователь.
@@ -88,7 +88,7 @@ class UserService:
             extra=log_extra,
         )
 
-        self._ensure_manage_permission(current_user)
+        self._ensure_admin_permission(current_user)
 
         users = await user_crud.get_multi(session=session)
 
@@ -133,7 +133,7 @@ class UserService:
         - системного кода (создание администратора при старте приложения)
 
         Доступно:
-        - администратору или менеджеру;
+        - администратору;
         - неавторизованному пользователю (регистрация).
 
         Выполняет следующие действия:
@@ -197,9 +197,20 @@ class UserService:
         current_user: User,
         session: AsyncSession,
     ) -> User:
-        """Обновляет существующего пользователя.
+        """Обновляет существующего пользователя по его ID.
 
-        Доступно администратору или менеджеру.
+        Доступно только администратору.
+        Может изменить:
+        - `username`
+        - `email`
+        - `phone`
+        - `tg_id`
+        - `password`
+
+        Запрещено изменять:
+        - `is_active` (только через activate/deactivate)
+        - `cafe_id`  (управляется через update_cafe, при изменении менеджеров)
+        - `role`  (только через update_role)
 
         Выполняет частичное обновление данных пользователя:
         - проверяет существование пользователя;
@@ -222,7 +233,7 @@ class UserService:
                 - 404: Если пользователь не найден.
                 - 409: Если нарушена уникальность данных.
         """
-        self._ensure_manage_permission(current_user)
+        self._ensure_admin_permission(current_user)
 
         user = await self._get_user_or_404(user_id, session)
 
@@ -242,6 +253,73 @@ class UserService:
 
         logger.info(
             'Пользователь успешно обновлён: %s',
+            user.__repr__(),
+            extra=self._build_log_extra(current_user),
+        )
+
+        return user
+
+    async def update_role(
+        self,
+        user_id: int,
+        user_in: UserUpdateRole,
+        current_user: User,
+        session: AsyncSession,
+    ) -> User:
+        """Обновляет роль пользователя по его ID.
+
+        Доступно только администратору.
+
+        Метод предназначен для изменения роли пользователя.
+        Возможные роли перечислены в `UserRole`.
+
+        Args:
+            user_id: Идентификатор пользователя.
+            user_in: Данные для обновления пользователя.
+            current_user: Текущий пользователь (инициатор операции).
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Обновлённый пользователь.
+
+        Raises:
+            HTTPException:
+                - 403: Если недостаточно прав.
+                - 404: Если пользователь не найден.
+                - 409: Если администратор пытается изменить свою роль.
+        """
+        self._ensure_admin_permission(current_user)
+
+        user = await self._get_user_or_404(user_id, session)
+
+        if current_user.id == user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Администратор не может изменить собственную роль',
+            )
+
+        if user.role == user_in.role:
+            return user
+
+        if user.role == UserRole.MANAGER and user.cafe_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    'Нельзя изменить роль менеджера, привязанного к кафе. '
+                    'Сначала отвяжите менеджера от кафе.'
+                ),
+            )
+
+        user_data = user_in.model_dump(exclude_unset=True)
+
+        user = await user_crud.update(
+            db_obj=user,
+            obj_in=user_data,
+            session=session,
+        )
+
+        logger.info(
+            'Роль пользователя успешно обновлена: %s',
             user.__repr__(),
             extra=self._build_log_extra(current_user),
         )
@@ -270,7 +348,6 @@ class UserService:
         - `role`
         - `is_active`
         - `cafe_id`
-        - любые системные атрибуты
 
         Выполняет частичное обновление данных пользователя:
         - проверяет уникальность обновляемых полей;
@@ -311,15 +388,60 @@ class UserService:
 
         return user
 
+    async def activate_user(
+        self,
+        user_id: int,
+        current_user: User,
+        session: AsyncSession,
+    ) -> User:
+        """Активирует пользователя по его ID.
+
+        Выполняет активацию пользователя путём установки `is_active=True`.
+        Доступно только администраторам.
+
+        Args:
+            user_id: Идентификатор пользователя для активации.
+            current_user: Текущий пользователь (должен быть администратором).
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Активированный объект User.
+
+        Raises:
+            HTTPException:
+                - 403: Если у пользователя нет прав.
+                - 404: Если пользователь не найден.
+                - 409: Если пользователь уже активирован.
+        """
+        self._ensure_admin_permission(current_user)
+
+        user = await self._get_user_or_404(user_id, session)
+
+        if user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Пользователь уже активирован',
+            )
+
+        user = await user_crud.activate(user, session)
+
+        logger.info(
+            'Пользователь активирован: %s.',
+            user.__repr__(),
+            extra=self._build_log_extra(current_user),
+        )
+
+        return user
+
     async def deactivate_user(
         self,
         user_id: int,
         current_user: User,
         session: AsyncSession,
     ) -> User:
-        """Деактивирует пользователя.
+        """Деактивирует пользователя по его ID.
 
-        Выполняет soft delete пользователя путём установки `is_active = False`.
+        Выполняет деактивацию пользователя путём установки `is_active=False`.
         Пользователь не удаляется физически из базы данных.
         Доступно только администраторам.
 
@@ -337,13 +459,15 @@ class UserService:
                 - 404: Если пользователь не найден.
                 - 409: Если пользователь уже деактивирован.
         """
-        if current_user.role != UserRole.ADMIN:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail='Недостаточно прав',
-            )
+        self._ensure_admin_permission(current_user)
 
         user = await self._get_user_or_404(user_id, session)
+
+        if current_user.id == user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Администратор не может деактивировать сам себя.',
+            )
 
         if not user.is_active:
             raise HTTPException(
@@ -366,10 +490,10 @@ class UserService:
 
         Разрешено:
         - неавторизованному пользователю (регистрация);
-        - пользователю с ролью ADMIN или MANAGER.
+        - пользователю с ролью ADMIN.
 
         Запрещено:
-        - авторизованному пользователю с ролью USER.
+        - авторизованному пользователю с ролью USER или MANAGER.
 
         Args:
             current_user: Пользователь, инициировавший операцию либо None.
@@ -382,7 +506,7 @@ class UserService:
         if current_user is None:
             return
 
-        if current_user.role in {UserRole.ADMIN, UserRole.MANAGER}:
+        if current_user.role == UserRole.ADMIN:
             return
 
         raise HTTPException(
@@ -390,12 +514,10 @@ class UserService:
             detail='Недостаточно прав',
         )
 
-    def _ensure_manage_permission(self, user: User) -> None:
+    def _ensure_admin_permission(self, user: User) -> None:
         """Проверяет право пользователя управлять пользователями.
 
-        Доступ разрешён:
-        - администраторам;
-        - менеджерам.
+        Доступ разрешён только администраторам.
 
         Args:
             user: Текущий пользователь.
@@ -404,7 +526,7 @@ class UserService:
             HTTPException:
                 - 403: Если у пользователя недостаточно прав.
         """
-        if user.role not in {UserRole.ADMIN, UserRole.MANAGER}:
+        if user.role != UserRole.ADMIN:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail='Недостаточно прав',

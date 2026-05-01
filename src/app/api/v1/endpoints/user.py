@@ -5,11 +5,11 @@ from fastapi import APIRouter, Path, status
 from app.api.dependencies import (
     CurrentActiveUser,
     CurrentAdmin,
-    CurrentAdminOrManager,
     DbSession,
     UserCreator,
 )
 from app.api.v1.docs.user import (
+    USER_ACTIVATE_DESCRIPTION,
     USER_CREATE_DESCRIPTION,
     USER_DEACTIVATE_DESCRIPTION,
     USER_GET_BY_ID_DESCRIPTION,
@@ -28,7 +28,13 @@ from app.core.responses import (
     USER_CONFLICT_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
 )
-from app.schemas import UserCreate, UserInfo, UserUpdate, UserUpdateMe
+from app.schemas import (
+    UserCreate,
+    UserInfo,
+    UserUpdate,
+    UserUpdateMe,
+    UserUpdateRole,
+)
 from app.services.user import user_service
 
 router = APIRouter()
@@ -46,12 +52,12 @@ router = APIRouter()
     },
 )
 async def get_users_list(
-    current_user: CurrentAdminOrManager,
+    current_user: CurrentAdmin,
     session: DbSession,
 ) -> list[UserInfo]:
     """Возвращает список пользователей.
 
-    Доступно только для администраторов или менеджеров.
+    Доступно только для администраторов.
 
     Args:
         current_user: Текущий пользователь.
@@ -62,6 +68,7 @@ async def get_users_list(
 
     Raises:
         HTTPException:
+            - 401: Если пользователь не авторизован.
             - 403: Если у пользователя нет прав.
     """
     return await user_service.get_users_list(
@@ -92,7 +99,7 @@ async def create_user(
     """Создание нового пользователя с учетом прав доступа.
 
     Доступно:
-    - администратору или менеджеру;
+    - администратору;
     - неавторизованному пользователю (регистрация).
 
     Метод:
@@ -211,13 +218,19 @@ async def update_me(
     },
 )
 async def get_user_by_id(
-    user_id: Annotated[int, Path(description='ID пользователя', ge=1)],
-    current_user: CurrentAdminOrManager,
+    user_id: Annotated[
+        int,
+        Path(
+            description='ID пользователя',
+            ge=1,
+        ),
+    ],
+    current_user: CurrentAdmin,
     session: DbSession,
 ) -> UserInfo:
     """Возвращает пользователя по его идентификатору.
 
-    Доступно только для администраторов или менеджеров.
+    Доступно только для администраторов.
 
     Args:
         user_id: Идентификатор пользователя.
@@ -255,14 +268,24 @@ async def get_user_by_id(
     },
 )
 async def update_user(
-    user_id: Annotated[int, Path(description='ID пользователя', ge=1)],
+    user_id: Annotated[
+        int,
+        Path(
+            description='ID пользователя',
+            ge=1,
+        ),
+    ],
     user_in: UserUpdate,
-    current_user: CurrentAdminOrManager,
+    current_user: CurrentAdmin,
     session: DbSession,
 ) -> UserInfo:
     """Обновляет данные пользователя по его идентификатору.
 
-    Доступно только для администраторов или менеджеров.
+    Доступно только администраторам.
+    - Поле `is_active` не может быть изменено через обновление,
+                для этого используйте activate_user/deactivate_user;
+    - Поле `role` изменяется через update_role;
+    - Поле `cafe_id` управляется через update_cafe, при изменении менеджеров.
 
     Args:
         user_id: Идентификатор пользователя.
@@ -288,8 +311,113 @@ async def update_user(
     )
 
 
-@router.delete(
-    '/{user_id}',
+@router.patch(
+    '/{user_id}/role',
+    response_model=UserInfo,
+    summary='Обновление роли пользователя по его ID',
+    description=USER_UPDATE_DESCRIPTION,
+    responses={
+        **OK_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **CONFLICT_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def update_role(
+    user_id: Annotated[
+        int,
+        Path(
+            description='ID пользователя',
+            ge=1,
+        ),
+    ],
+    user_in: UserUpdateRole,
+    current_user: CurrentAdmin,
+    session: DbSession,
+) -> UserInfo:
+    """Обновляет роль пользователя по его идентификатору.
+
+    Доступно только администраторам.
+
+    Args:
+        user_id: Идентификатор пользователя.
+        user_in: Данные для обновления пользователя.
+        current_user: Текущий пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Обновлённая информация о пользователе.
+
+    Raises:
+        HTTPException:
+            - 401: Если пользователь не авторизован.
+            - 403: Если у пользователя недостаточно прав.
+            - 404: Если пользователь не найден.
+            - 409: Если администратор пытается изменить свою роль.
+    """
+    return await user_service.update_role(
+        user_id=user_id,
+        user_in=user_in,
+        current_user=current_user,
+        session=session,
+    )
+
+
+@router.post(
+    '/{user_id}/activate',
+    status_code=status.HTTP_200_OK,
+    response_model=UserInfo,
+    summary='Активировать пользователя по ID',
+    description=USER_ACTIVATE_DESCRIPTION,
+    responses={
+        **OK_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **CONFLICT_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def activate_user(
+    user_id: Annotated[
+        int,
+        Path(
+            description='ID пользователя',
+            ge=1,
+        ),
+    ],
+    current_user: CurrentAdmin,
+    session: DbSession,
+) -> UserInfo:
+    """Активирует пользователя по ID.
+
+    Доступно только администраторам.
+
+    Args:
+        user_id: Идентификатор пользователя для активации.
+        current_user: Текущий аутентифицированный пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Объект с обновленной информацией о пользователя.
+
+    Raises:
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если пользователь не найден.
+            - 409: Если пользователь уже активирован.
+    """
+    return await user_service.activate_user(
+        user_id=user_id,
+        current_user=current_user,
+        session=session,
+    )
+
+
+@router.post(
+    '/{user_id}/deactivate',
     status_code=status.HTTP_200_OK,
     response_model=UserInfo,
     summary='Деактивировать пользователя по ID',
@@ -304,7 +432,13 @@ async def update_user(
     },
 )
 async def deactivate_user(
-    user_id: Annotated[int, Path(description='ID пользователя', ge=1)],
+    user_id: Annotated[
+        int,
+        Path(
+            description='ID пользователя',
+            ge=1,
+        ),
+    ],
     current_user: CurrentAdmin,
     session: DbSession,
 ) -> UserInfo:
