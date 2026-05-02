@@ -8,6 +8,7 @@ from app.api.dependencies import (
     DbSession,
 )
 from app.api.v1.docs.slot import (
+    SLOT_ACTIVATE_DESCRIPTION,
     SLOT_CREATE_DESCRIPTION,
     SLOT_DEACTIVATE_DESCRIPTION,
     SLOT_GET_BY_ID_DESCRIPTION,
@@ -209,7 +210,7 @@ async def update_time_slot(
     """Обновляет данные временного слота по его идентификатору.
 
     Позволяет частично обновить параметры временного слота
-    (время начала, окончания, описание, статус активности).
+    (время начала, окончания, описание).
 
     Доступ предоставляется:
     - администраторам — для любого кафе;
@@ -247,8 +248,70 @@ async def update_time_slot(
     )
 
 
-@router.delete(
-    '/{slot_id}',
+@router.post(
+    '/{slot_id}/activate',
+    status_code=status.HTTP_200_OK,
+    response_model=TimeSlotInfo,
+    summary='Активировать временный слот по ID',
+    description=SLOT_ACTIVATE_DESCRIPTION,
+    responses={
+        **OK_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **CONFLICT_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def activate_time_slot(
+    cafe_id: Annotated[
+        int,
+        Path(
+            description='ID кафе',
+            ge=1,
+        ),
+    ],
+    slot_id: Annotated[
+        int,
+        Path(
+            description='ID слота',
+            ge=1,
+        ),
+    ],
+    user: CurrentAdminOrManager,
+    session: DbSession,
+) -> TimeSlotInfo:
+    """Активирует временной слот по ID.
+
+    Доступно:
+    - администраторам;
+    - менеджерам кафе, к которому относится временной слот.
+
+    Args:
+        cafe_id: Идентификатор кафе, к которому относится слот.
+        slot_id: Идентификатор слота для активации.
+        user: Текущий аутентифицированный пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Объект с обновленной информацией о слоте.
+
+    Raises:
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если кафе или слот не найдены.
+            - 409: Если слот уже активирован.
+    """
+    return await slot_service.activate_time_slot(
+        cafe_id=cafe_id,
+        slot_id=slot_id,
+        user=user,
+        session=session,
+    )
+
+
+@router.post(
+    '/{slot_id}/deactivate',
     status_code=status.HTTP_200_OK,
     response_model=TimeSlotInfo,
     summary='Деактивировать временный слот по ID',
@@ -263,12 +326,28 @@ async def update_time_slot(
     },
 )
 async def deactivate_time_slot(
-    cafe_id: Annotated[int, Path(description='ID кафе', ge=1)],
-    slot_id: Annotated[int, Path(description='ID слота', ge=1)],
+    cafe_id: Annotated[
+        int,
+        Path(
+            description='ID кафе',
+            ge=1,
+        ),
+    ],
+    slot_id: Annotated[
+        int,
+        Path(
+            description='ID слота',
+            ge=1,
+        ),
+    ],
     user: CurrentAdminOrManager,
     session: DbSession,
 ) -> TimeSlotInfo:
     """Деактивирует временной слот по ID.
+
+    Доступно:
+    - администраторам;
+    - менеджерам кафе, к которому относится временной слот.
 
     Args:
         cafe_id: Идентификатор кафе, к которому относится слот.

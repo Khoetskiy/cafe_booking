@@ -273,23 +273,34 @@ class SlotService:
             session=session,
         )
 
+        start_time = (
+            slot_in.start_time
+            if slot_in.start_time is not None
+            else slot.start_time
+        )
+        end_time = (
+            slot_in.end_time
+            if slot_in.end_time is not None
+            else slot.end_time
+        )
+
         self._validate_time_range(
-            start_time=slot_in.start_time or slot.start_time,
-            end_time=slot_in.end_time or slot.end_time,
+            start_time=start_time,
+            end_time=end_time,
         )
 
         await self._check_time_slot_exists(
             cafe_id=cafe.id,
-            start_time=slot_in.start_time or slot.start_time,
-            end_time=slot_in.end_time or slot.end_time,
+            start_time=start_time,
+            end_time=end_time,
             exclude_slot_id=slot.id,
             session=session,
         )
 
         await self._check_overlapping_slots(
             cafe_id=cafe.id,
-            start_time=slot_in.start_time or slot.start_time,
-            end_time=slot_in.end_time or slot.end_time,
+            start_time=start_time,
+            end_time=end_time,
             exclude_slot_id=slot.id,
             session=session,
         )
@@ -308,6 +319,78 @@ class SlotService:
 
         return slot
 
+    async def activate_time_slot(
+        self,
+        cafe_id: int,
+        slot_id: int,
+        user: User,
+        session: AsyncSession,
+    ) -> Slot:
+        """Активирует временной слот по ID.
+
+        Выполняет активацию слота путём установки `is_active=True`.
+
+        Доступно:
+        - администраторам;
+        - менеджерам кафе, к которому относится слот.
+
+        Args:
+            cafe_id: Идентификатор кафе.
+            slot_id: Идентификатор слота.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Активированный объект Slot.
+
+        Raises:
+            HTTPException:
+                - 403: Если у пользователя нет прав.
+                - 404: Если кафе или слот не найдены.
+                - 409: Если слот уже активирован.
+        """
+        cafe = await get_cafe_or_404(cafe_id, session)
+
+        self._ensure_manage_permission(user, cafe)
+
+        slot = await self._get_time_slot_or_404(
+            slot_id=slot_id,
+            cafe_id=cafe.id,
+            session=session,
+        )
+
+        if slot.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Слот уже активирован',
+            )
+
+        await self._check_time_slot_exists(
+            cafe_id=cafe.id,
+            start_time=slot.start_time,
+            end_time=slot.end_time,
+            exclude_slot_id=slot.id,
+            session=session,
+        )
+
+        await self._check_overlapping_slots(
+            cafe_id=cafe.id,
+            start_time=slot.start_time,
+            end_time=slot.end_time,
+            exclude_slot_id=slot.id,
+            session=session,
+        )
+
+        slot = await slot_crud.activate(slot, session)
+
+        logger.info(
+            'Слот активирован: %s',
+            slot.__repr__(),
+            extra={'user': f'{user.username} id={user.id}'},
+        )
+
+        return slot
+
     async def deactivate_slot(
         self,
         cafe_id: int,
@@ -315,10 +398,10 @@ class SlotService:
         user: User,
         session: AsyncSession,
     ) -> Slot:
-        """Деактивирует временной слот.
+        """Деактивирует временной слот по ID.
 
-        Выполняет soft delete слота путём установки `is_active = False`.
-        Слот не удаляется физически из базы данных.
+        Выполняет soft delete слота путём установки `is_active=False`.
+        Объект слота не удаляется физически из базы данных.
 
         Доступно:
         - администраторам;

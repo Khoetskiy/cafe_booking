@@ -98,7 +98,6 @@ class TimeSlotUpdate(TimeSlotBase):
         examples=['12:00'],
         description='Время окончания слота',
     )
-    is_active: bool | None = Field(None, description='Флаг активности слота')
 
     model_config = ConfigDict(extra='forbid')
 
