@@ -75,14 +75,20 @@ class MediaService:
             Объект MediaListInfo, содержащий общее количество и список
                     элементов MediaItem с информацией об использовании.
         """
-        files = list(self._media_dir.glob('*jpg'))
+        files = list(self._media_dir.glob('*.jpg'))
 
         used_ids = await cafe_crud.get_photo_ids(session)
 
         items: list[MediaItem] = []
 
         for file in files:
-            media_id = UUID(file.stem)
+            # Ignore manually added or stray .jpg files not named
+            # by our UUID scheme.
+            try:
+                media_id = UUID(file.stem)
+            except ValueError:
+                continue
+
             items.append(
                 MediaItem(
                     id=media_id,
@@ -180,7 +186,7 @@ class MediaService:
     ) -> MediaDeletedInfo:
         """Удаляет изображение и очищает все ссылки на него в БД.
 
-        Атомарная операция, которая:
+        Метод выполняет:
         1. Находит все кафе, использующие это изображение;
         2. Обнуляет поле `photo_id` у найденных кафе;
         3. Удаляет файл из файловой системы;

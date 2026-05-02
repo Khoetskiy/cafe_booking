@@ -26,6 +26,7 @@ from app.api.v1.docs.media import (
 )
 from app.core.responses import (
     BAD_REQUEST_RESPONSE,
+    CREATED_RESPONSE,
     FORBIDDEN_RESPONSE,
     MEDIA_NOT_FOUND_RESPONSE,
     MEDIA_OK_RESPONSE,
@@ -93,12 +94,12 @@ async def get_images_list(
 @router.post(
     '/',
     response_model=MediaInfo,
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_201_CREATED,
     summary='Загрузка нового изображения',
     description=MEDIA_UPLOAD_IMAGE_DESCRIPTION,
     dependencies=[Depends(current_admin_or_manager)],
     responses={
-        **OK_RESPONSE,
+        **CREATED_RESPONSE,
         **BAD_REQUEST_RESPONSE,
         **UNAUTHORIZED_RESPONSE,
         **FORBIDDEN_RESPONSE,
