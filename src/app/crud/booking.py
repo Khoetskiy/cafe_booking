@@ -102,5 +102,25 @@ class CRUDBooking(CRUDBase[Booking, BookingCreate, BookingUpdate]):
         )
         await session.commit()
 
+    async def save(self, booking: Booking, session: AsyncSession) -> Booking:
+        """Сохраняет изменения бронирования в базе данных.
+
+        Фиксирует текущие изменения объекта Booking в базе данных,
+        выполняя commit транзакции, и обновляет объект из базы данных.
+
+        Args:
+            booking: Объект бронирования с внесёнными изменениями.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Обновлённый объект Booking после сохранения.
+
+        Raises:
+            SQLAlchemyError: Если произошла ошибка при сохранении в БД.
+        """
+        await session.commit()
+        await session.refresh(booking)
+        return booking
+
 
 booking_crud = CRUDBooking(Booking)

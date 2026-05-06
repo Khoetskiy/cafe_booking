@@ -326,21 +326,22 @@ class BookingService:
             session=session,
         )
 
-        remind_at = datetime.combine(
-            booking.booking_date,
-            datetime.min.time(),
-        )
+        # HACK: Временно отключил
+        # remind_at = datetime.combine(
+        #     booking.booking_date,
+        #     datetime.min.time(),
+        # )
 
-        task_id = on_booking_created(
-            booking_id=booking.id,
-            remind_at=remind_at,
-        )
+        # task_id = on_booking_created(
+        #     booking_id=booking.id,
+        #     remind_at=remind_at,
+        # )
 
-        await booking_crud.update(
-            db_obj=booking,
-            obj_in={'reminder_task_id': task_id},
-            session=session,
-        )
+        # await booking_crud.update(
+        #     db_obj=booking,
+        #     obj_in={'reminder_task_id': task_id},
+        #     session=session,
+        # )
 
         # Re-fetch the booking so `tables_slots.table` and `tables_slots.slot`
         # are loaded before response-model serialization.
@@ -365,8 +366,8 @@ class BookingService:
 
         Последовательно выполняет:
         - Получает бронирование по ID или выбрасывает 404;
+        - Проверяет активно ли бронирование (поле `is_active`);
         - Проверяет, имеет ли пользователь право обновлять данное бронирование;
-        - При изменении кафе проверяет его существование и активность;
         - Валидирует дату бронирования;
         - Проверяет отсутствие дубликатов связок стол–слот.
         - Проверяет существование и принадлежность столов и слотов кафе.
@@ -398,12 +399,8 @@ class BookingService:
         """
         booking = await self._get_booking_or_404(booking_id, session)
 
-        if not self._can_manage_booking(user, booking):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='Бронирование не найдено',
-            )
-
+        self._ensure_booking_is_active(booking)
+        self._ensure_user_can_manage_booking(user, booking)
         self._ensure_booking_can_be_updated(booking)
 
         logger.info(
@@ -412,17 +409,13 @@ class BookingService:
             extra={'user': f'{user.username} id={user.id}'},
         )
 
-        cafe_id = booking_in.cafe_id or booking.cafe_id
+        cafe_id = booking.cafe_id
         booking_date = booking_in.booking_date or booking.booking_date
         tables_slots = (
             booking_in.tables_slots
             if booking_in.tables_slots is not None
             else booking.tables_slots
         )
-
-        if booking_in.cafe_id is not None:
-            cafe = await get_cafe_or_404(booking_in.cafe_id, session)
-            ensure_cafe_is_active(cafe)
 
         self._validate_booking_date(booking_date=booking_date)
 
@@ -464,21 +457,245 @@ class BookingService:
             extra={'user': f'{user.username} id={user.id}'},
         )
 
-        new_remind_at = datetime.combine(
-            booking.booking_date,
-            datetime.min.time(),
+        # HACK: Временно отключил
+        # new_remind_at = datetime.combine(
+        #     booking.booking_date,
+        #     datetime.min.time(),
+        # )
+
+        # new_task_id = on_booking_updated(
+        #     booking_id=booking.id,
+        #     old_task_id=booking.reminder_task_id,
+        #     new_remind_at=new_remind_at,
+        # )
+
+        # await booking_crud.update(
+        #     db_obj=booking,
+        #     obj_in={'reminder_task_id': new_task_id},
+        #     session=session,
+        # )
+
+        return booking
+
+    async def confirm_booking(
+        self,
+        booking_id: int,
+        user: User,
+        session: AsyncSession,
+    ) -> Booking:
+        """Подтверждает бронирование.
+
+        Метод обновляет статус бронирования с "pending" на "confirmed".
+        Доступно администатору и менеджеру кафе.
+
+        Нельзя подтвердить бронирования:
+        - Если оно деактивировано;
+        - Если недостаточно прав (только администратор и менеджер);
+        - Если дата бронирования в прошлом;
+        - Если статус бронирования не "pending".
+
+        Args:
+            booking_id: Идентификатор бронирования.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Обновлённый объект Booking.
+
+        Raises:
+            HTTPException:
+                - 400: Если дата бронирования в прошлом / статус не "pending".
+                - 403: Если недостаточно прав.
+                - 404: Бронирование не найдено / деактивировано.
+        """
+        booking = await self._get_booking_or_404(booking_id, session)
+
+        self._ensure_booking_is_active(booking)
+        self._ensure_staff_can_manage_booking(booking, user)
+        self._ensure_booking_not_in_past(booking)
+
+        try:
+            booking.confirm(user_id=user.id)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+
+        booking = await booking_crud.save(booking=booking, session=session)
+
+        logger.info(
+            'Бронирование id=%s подтверждено: %s',
+            booking.id,
+            repr(booking),
+            extra={'user': f'{user.username} id={user.id}'},
         )
 
-        new_task_id = on_booking_updated(
-            booking_id=booking.id,
-            old_task_id=booking.reminder_task_id,
-            new_remind_at=new_remind_at,
+        return booking
+
+    async def cancel_booking(
+        self,
+        booking_id: int,
+        user: User,
+        session: AsyncSession,
+    ) -> Booking:
+        """Отменяет бронирование.
+
+        Метод обновляет статус бронирования на "cancelled".
+        Доступно автору бронирования, администатору и менеджеру кафе.
+
+        Нельзя отменить бронирования:
+        - Если оно деактивировано;
+        - Если недостаточно прав;
+        - Если статус бронирования не "pending" или не "confirmed".
+
+        Args:
+            booking_id: Идентификатор бронирования.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Обновлённый объект Booking.
+
+        Raises:
+            HTTPException:
+                - 400: Если статус не допускает отмену.
+                - 403: Если недостаточно прав.
+                - 404: Бронирование не найдено / деактивировано.
+        """
+        booking = await self._get_booking_or_404(booking_id, session)
+
+        self._ensure_booking_is_active(booking)
+        self._ensure_user_can_manage_booking(user, booking)
+
+        try:
+            booking.cancel(user_id=user.id)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+
+        booking = await booking_crud.save(booking=booking, session=session)
+
+        logger.info(
+            'Бронирование id=%s отменено: %s',
+            booking.id,
+            repr(booking),
+            extra={'user': f'{user.username} id={user.id}'},
         )
 
-        await booking_crud.update(
-            db_obj=booking,
-            obj_in={'reminder_task_id': new_task_id},
-            session=session,
+        return booking
+
+    async def complete_booking(
+        self,
+        booking_id: int,
+        user: User,
+        session: AsyncSession,
+    ) -> Booking:
+        """Завершает бронирование.
+
+        Метод обновляет статус бронирования на "completed".
+        Доступно администатору и менеджеру кафе.
+
+        Нельзя завершить бронирования:
+        - Если оно деактивировано;
+        - Если недостаточно прав;
+        - Если дата бронирования ещё не наступила;
+        - Если статус бронирования не "confirmed".
+
+        Args:
+            booking_id: Идентификатор бронирования.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Обновлённый объект Booking.
+
+        Raises:
+            HTTPException:
+                - 400: Если статус не "confirmed" / дата не наступила.
+                - 403: Если недостаточно прав.
+                - 404: Бронирование не найдено / деактивировано.
+        """
+        booking = await self._get_booking_or_404(booking_id, session)
+
+        self._ensure_booking_is_active(booking)
+        self._ensure_staff_can_manage_booking(booking, user)
+        self._ensure_booking_started(booking)
+
+        try:
+            booking.complete(user_id=user.id)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+
+        booking = await booking_crud.save(booking=booking, session=session)
+
+        logger.info(
+            'Бронирование id=%s завершено: %s',
+            booking.id,
+            repr(booking),
+            extra={'user': f'{user.username} id={user.id}'},
+        )
+
+        return booking
+
+    async def activate_booking(
+        self,
+        booking_id: int,
+        user: User,
+        session: AsyncSession,
+    ) -> Booking:
+        """Активирует бронирование.
+
+        Выполняет активацию бронирования путём установки `is_active=True`.
+        Доступно администатору и менеджеру кафе.
+
+        Args:
+            booking_id: Идентификатор бронирования.
+            user: Текущий пользователь.
+            session: Асинхронная сессия SQLAlchemy.
+
+        Returns:
+            Активированный объект Booking.
+
+        Raises:
+            HTTPException:
+                - 403: Если у пользователя нет прав.
+                - 404: Если бронирование не найдено.
+                - 409: Если бронирование уже активировано.
+        """
+        booking = await self._get_booking_or_404(booking_id, session)
+
+        self._ensure_staff_can_manage_booking(booking, user)
+
+        if booking.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Бронирование уже активировано',
+            )
+
+        booking = await booking_crud.activate(booking, session)
+
+        # HACK: Временно отключил
+        # on_booking_canceled(
+        #     booking_id=booking.id,
+        #     task_id=booking.reminder_task_id,
+        # )
+
+        # await booking_crud.update(
+        #     db_obj=booking,
+        #     obj_in={'reminder_task_id': None},
+        #     session=session,
+        # )
+
+        logger.info(
+            'Бронирование активировано: %s',
+            booking.__repr__(),
+            extra={'user': f'{user.username} id={user.id}'},
         )
 
         return booking
@@ -493,7 +710,7 @@ class BookingService:
 
         Выполняет soft delete бронирования путём установки `is_active = False`.
         Бронирование не удаляется физически из базы данных.
-        Доступно автору бронирования.
+        Доступно администатору и менеджеру кафе.
 
         Args:
             booking_id: Идентификатор бронирования.
@@ -510,10 +727,16 @@ class BookingService:
                 - 409: Если бронирование уже деактивировано.
         """
         booking = await self._get_booking_or_404(booking_id, session)
-        if not self._can_manage_booking(user, booking):
+
+        self._ensure_staff_can_manage_booking(booking, user)
+
+        if booking.status in {BookingStatus.PENDING, BookingStatus.CONFIRMED}:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail='Недостаточно прав',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    'Нельзя деактивировать активное бронирование. '
+                    'Сначала измените его статус.'
+                ),
             )
 
         if not booking.is_active:
@@ -523,16 +746,18 @@ class BookingService:
             )
 
         booking = await booking_crud.soft_delete(booking, session)
-        on_booking_canceled(
-            booking_id=booking.id,
-            task_id=booking.reminder_task_id,
-        )
 
-        await booking_crud.update(
-            db_obj=booking,
-            obj_in={'reminder_task_id': None},
-            session=session,
-        )
+        # HACK: Временно отключил
+        # on_booking_canceled(
+        #     booking_id=booking.id,
+        #     task_id=booking.reminder_task_id,
+        # )
+
+        # await booking_crud.update(
+        #     db_obj=booking,
+        #     obj_in={'reminder_task_id': None},
+        #     session=session,
+        # )
 
         logger.info(
             'Бронирование деактивировано: %s',
@@ -570,9 +795,31 @@ class BookingService:
                 detail='Бронирование не найдено',
             )
 
-        logger.debug('Найдено бронирование: %s', booking.__repr__())
+        logger.debug(
+            'Найдено бронирование: %s',
+            booking.__repr__(),
+        )
 
         return booking
+
+    def _ensure_booking_is_active(self, booking: Booking) -> None:
+        """Проверяет, что бронирование активно.
+
+        Бронирование считается недоступным, если оно деактивировано
+        (soft delete через поле `is_active`).
+
+        Args:
+            booking: Объект бронирования.
+
+        Raises:
+            HTTPException:
+                - 404: Если бронирование деактивировано или не найдено.
+        """
+        if not booking.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Бронирование не найдено',
+            )
 
     def _can_view_booking(self, user: User, booking: Booking) -> bool:
         """Проверяет, имеет ли пользователь право просматривать бронирование.
@@ -601,11 +848,9 @@ class BookingService:
         """Проверяет, имеет ли пользователь право управлять бронированием.
 
         Правила:
-        - Администратор имеет право управлять любым бронированием;
-        - Менеджер имеет право управлять бронированиями кафе,
-                                    которым он управляет;
-        - Пользователь имеет право управлять только собственными
-                                                    бронированиями.
+        - Администратор может управлять любым бронированием;
+        - Менеджер может управлять бронированиями кафе, которым он управляет;
+        - Пользователь может управлять только собственными бронированиями.
 
         Args:
             user: Текущий пользователь.
@@ -620,6 +865,96 @@ class BookingService:
             or booking.user_id == user.id
         )
 
+    def _ensure_user_can_manage_booking(
+        self,
+        user: User,
+        booking: Booking,
+    ) -> None:
+        """Проверяет, что пользователь может управлять бронированием.
+
+        Доступ разрешён:
+        - администратору;
+        - менеджеру кафе;
+        - владельцу бронирования.
+
+        Args:
+            booking: Объект бронирования.
+            user: Текущий пользователь.
+
+        Raises:
+            HTTPException:
+                - 404: Если пользователь не имеет доступа к бронированию.
+        """
+        if not self._can_manage_booking(user, booking):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Бронирование не найдено.',
+            )
+
+    def _ensure_staff_can_manage_booking(
+        self,
+        booking: Booking,
+        user: User,
+    ) -> None:
+        """Проверяет права пользователя на изменение статуса бронирования.
+
+        Доступно:
+        - администратору;
+        - менеджеру кафе, к которому относится бронирование.
+
+        Args:
+            booking: Объект бронирования.
+            user: Текущий пользователь.
+
+        Raises:
+            HTTPException:
+                - 403: Если у пользователя недостаточно прав.
+        """
+        if not (
+            user.role == UserRole.ADMIN
+            or can_manage_cafe(user, booking.cafe_id)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Недостаточно прав',
+            )
+
+    def _ensure_booking_not_in_past(self, booking: Booking) -> None:
+        """Проверяет, что дата бронирования не в прошлом.
+
+        Подтверждение невозможно для бронирований, дата которых уже прошла.
+
+        Args:
+            booking: Объект бронирования.
+
+        Raises:
+            HTTPException:
+                - 400: Если дата бронирования в прошлом.
+        """
+        if booking.booking_date < date.today():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Невозможно подтвердить бронирование',
+            )
+
+    def _ensure_booking_started(self, booking: Booking) -> None:
+        """Проверяет, что бронирование уже началось.
+
+        Завершить бронирование можно только если его время наступило.
+
+        Args:
+            booking: Объект бронирования.
+
+        Raises:
+            HTTPException:
+                - 400: Если бронирование ещё не началось.
+        """
+        if booking.booking_date > date.today():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Нельзя завершить бронирование до его начала',
+            )
+
     def _ensure_booking_can_be_updated(
         self,
         booking: Booking,
@@ -627,8 +962,12 @@ class BookingService:
         """Проверяет, что бронирование допускает изменения.
 
         Разрешено изменять только бронирования:
-        - с датой не в прошлом;
-        - со статусом PENDING.
+        - со статусом PENDING;
+        - с датой не в прошлом.
+
+        Raises:
+            HTTPException:
+                - 400: Если бронирование нельзя изменить.
         """
         if booking.booking_date < date.today():
             raise HTTPException(
@@ -800,6 +1139,8 @@ class BookingService:
     ) -> dict:
         """Подготавливает данные для создания бронирования.
 
+        Автоматически устанавливает статус "PENDING" и привязку к пользователю.
+
         Args:
             booking_in: Данные для создания бронирования.
             user_id: Идентификатор текущего пользователя.
@@ -809,6 +1150,7 @@ class BookingService:
         """
         data = booking_in.model_dump(exclude_unset=True)
         data['user_id'] = user_id
+        data['status'] = BookingStatus.PENDING
         return data
 
     def _build_table_slot_bookings(

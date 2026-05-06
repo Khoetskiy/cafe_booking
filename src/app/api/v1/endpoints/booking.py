@@ -8,6 +8,10 @@ from app.api.dependencies import (
     DbSession,
 )
 from app.api.v1.docs.booking import (
+    BOOKING_ACTIVATE_DESCRIPTION,
+    BOOKING_CANCELLED_STATUS_DESCRIPTION,
+    BOOKING_COMPLETED_STATUS_DESCRIPTION,
+    BOOKING_CONFIRM_STATUS_DESCRIPTION,
     BOOKING_CREATE_DESCRIPTION,
     BOOKING_DEACTIVATE_DESCRIPTION,
     BOOKING_GET_BY_ID_DESCRIPTION,
@@ -283,7 +287,7 @@ async def get_booking_by_id(
         **VALIDATION_ERROR_RESPONSE,
     },
 )
-async def update(
+async def update_booking(
     booking_id: Annotated[
         int,
         Path(
@@ -330,8 +334,234 @@ async def update(
     )
 
 
-@router.delete(
-    '/{booking_id}',
+@router.post(
+    '/{booking_id}/confirm',
+    status_code=status.HTTP_200_OK,
+    response_model=BookingInfo,
+    summary='Подтвердить бронирование по ID',
+    description=BOOKING_CONFIRM_STATUS_DESCRIPTION,
+    responses={
+        **OK_RESPONSE,
+        **BAD_REQUEST_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def confirm_booking(
+    booking_id: Annotated[
+        int,
+        Path(
+            description='ID бронирования',
+            ge=1,
+        ),
+    ],
+    user: CurrentAdminOrManager,
+    session: DbSession,
+) -> BookingInfo:
+    """Подтверждает бронирование.
+
+    Метод подтверждает бронирование, устанавливая статус "confirmed".
+    Доступно администратору и менеджеру кафе.
+
+    Нельзя изменить статус:
+    - Если бронирование деактивировано;
+    - Если недостаточно прав (только администратор и менеджер);
+    - Если дата бронирования в прошлом;
+    - Если статус бронирования не "pending".
+
+    Args:
+        booking_id: Идентификатор бронирования.
+        user: Текущий пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Информация об обновлённом бронировании.
+
+    Raises:
+        HTTPException:
+            - 400: Если дата бронирования в прошлом / статус не "pending".
+            - 403: Если недостаточно прав.
+            - 404: Бронирование не найдено / деактивировано.
+    """
+    return await booking_service.confirm_booking(
+        booking_id=booking_id,
+        user=user,
+        session=session,
+    )
+
+
+@router.post(
+    '/{booking_id}/cancel',
+    status_code=status.HTTP_200_OK,
+    response_model=BookingInfo,
+    summary='Отменить бронирование по ID',
+    description=BOOKING_CANCELLED_STATUS_DESCRIPTION,
+    responses={
+        **OK_RESPONSE,
+        **BAD_REQUEST_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def cancel_booking(
+    booking_id: Annotated[
+        int,
+        Path(
+            description='ID бронирования',
+            ge=1,
+        ),
+    ],
+    user: CurrentActiveUser,
+    session: DbSession,
+) -> BookingInfo:
+    """Отменяет бронирование.
+
+    Метод отменяет бронирование, устанавливая статус "cancelled".
+
+    Доступно:
+    - автору бронирования;
+    - администратору;
+    - менеджеру кафе.
+
+    Нельзя отменить бронирование:
+    - Если оно деактивировано;
+    - Если недостаточно прав;
+    - Если статус бронирования не "pending" или "confirmed".
+
+    Args:
+        booking_id: Идентификатор бронирования.
+        user: Текущий пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Информация об обновлённом бронировании.
+
+    Raises:
+        HTTPException:
+            - 400: Если статус не допускает отмену.
+            - 403: Если недостаточно прав.
+            - 404: Бронирование не найдено / деактивировано.
+    """
+    return await booking_service.cancel_booking(
+        booking_id=booking_id,
+        user=user,
+        session=session,
+    )
+
+
+@router.post(
+    '/{booking_id}/complete',
+    status_code=status.HTTP_200_OK,
+    response_model=BookingInfo,
+    summary='Завершить бронирование по ID',
+    description=BOOKING_COMPLETED_STATUS_DESCRIPTION,
+    responses={
+        **OK_RESPONSE,
+        **BAD_REQUEST_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def complete_booking(
+    booking_id: Annotated[
+        int,
+        Path(
+            description='ID бронирования',
+            ge=1,
+        ),
+    ],
+    user: CurrentAdminOrManager,
+    session: DbSession,
+) -> BookingInfo:
+    """Завершает бронирование.
+
+    Метод завершает бронирование, устанавливая статус "completed".
+    Доступно администратору и менеджеру кафе.
+
+    Нельзя завершить бронирование:
+    - Если оно деактивировано;
+    - Если недостаточно прав;
+    - Если дата бронирования ещё не наступила;
+    - Если статус бронирования не "confirmed".
+
+    Args:
+        booking_id: Идентификатор бронирования.
+        user: Текущий пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Информация об обновлённом бронировании.
+
+    Raises:
+        HTTPException:
+            - 400: Если дата ещё не наступила или статус не "confirmed".
+            - 403: Если недостаточно прав.
+            - 404: Бронирование не найдено / деактивировано.
+    """
+    return await booking_service.complete_booking(
+        booking_id=booking_id,
+        user=user,
+        session=session,
+    )
+
+
+@router.post(
+    '/{booking_id}/activate',
+    status_code=status.HTTP_200_OK,
+    response_model=BookingInfo,
+    summary='Активировать бронирование по ID',
+    description=BOOKING_ACTIVATE_DESCRIPTION,
+    responses={
+        **OK_RESPONSE,
+        **UNAUTHORIZED_RESPONSE,
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **CONFLICT_RESPONSE,
+        **VALIDATION_ERROR_RESPONSE,
+    },
+)
+async def activate_booking(
+    booking_id: Annotated[
+        int,
+        Path(
+            description='ID бронирования',
+            ge=1,
+        ),
+    ],
+    user: CurrentAdminOrManager,
+    session: DbSession,
+) -> BookingInfo:
+    """Активирует бронирование по ID.
+
+    Args:
+        booking_id: Идентификатор бронирования.
+        user: Текущий аутентифицированный пользователь.
+        session: Асинхронная сессия SQLAlchemy.
+
+    Returns:
+        Объект с обновленной информацией о бронировании.
+
+    Raises:
+        HTTPException:
+            - 403: Если у пользователя нет прав.
+            - 404: Если бронирование не найдено.
+            - 409: Если бронирование уже активировано.
+    """
+    return await booking_service.activate_booking(
+        booking_id=booking_id,
+        user=user,
+        session=session,
+    )
+
+
+@router.post(
+    '/{booking_id}/deactivate',
     status_code=status.HTTP_200_OK,
     response_model=BookingInfo,
     summary='Деактивировать бронирование по ID',
@@ -353,7 +583,7 @@ async def deactivate_booking(
             ge=1,
         ),
     ],
-    user: CurrentActiveUser,
+    user: CurrentAdminOrManager,
     session: DbSession,
 ) -> BookingInfo:
     """Деактивирует бронирование по ID.

@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
     Date,
+    DateTime,
     ForeignKey,
     Integer,
     String,
@@ -15,7 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from app.core.constants import MAX_LENGTH_BOOKING_NOTE
 from app.core.db import Base
 from app.models.enum import BookingStatus
-from app.utils import escape_html_field
+from app.utils import escape_html_field, utc_now
 
 if TYPE_CHECKING:
     from app.models.cafe import Cafe
@@ -119,14 +120,44 @@ class Booking(Base):
         Date,
         nullable=False,
     )
+    confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    confirmed_by: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey('user.id', ondelete='RESTRICT'),
+        nullable=True,
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    cancelled_by: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey('user.id', ondelete='RESTRICT'),
+        nullable=True,
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    completed_by: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey('user.id', ondelete='RESTRICT'),
+        nullable=True,
+    )
     reminder_task_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
     )
 
-    user: Mapped['User'] = relationship('User', lazy='selectin')
+    user: Mapped['User'] = relationship(
+        'User',
+        foreign_keys=[user_id],
+        lazy='selectin',
+    )
     cafe: Mapped['Cafe'] = relationship('Cafe', lazy='selectin')
-
     tables_slots: Mapped[list['TableSlotBooking']] = relationship(
         'TableSlotBooking',
         lazy='selectin',
@@ -143,6 +174,73 @@ class Booking(Base):
             name='check_booking_date_not_past',
         ),
     )
+
+    def confirm(self, user_id: int) -> None:
+        """Подтверждает бронирование.
+
+        Переводит статус бронирования из "PENDING" в "CONFIRMED".
+        Фиксирует время и пользователя, выполнившего подтверждение.
+
+        Args:
+            user_id: Идентификатор пользователя, подтвердившего бронирование.
+
+        Raises:
+            ValueError: Если текущий статус бронирования не "PENDING".
+        """
+        if self.status != BookingStatus.PENDING:
+            raise ValueError(
+                'Невозможно подтвердить бронирование. '
+                'Статус бронирование должен быть "PENDING".'
+            )
+
+        self.status = BookingStatus.CONFIRMED
+        self.confirmed_at = utc_now()
+        self.confirmed_by = user_id
+
+    def cancel(self, user_id: int) -> None:
+        """Отменяет бронирование.
+
+        Переводит статус бронирования в "CANCELLED".
+        Отмена возможна только из состояний "PENDING" или "CONFIRMED".
+        Фиксирует пользователя, выполнившего отмену, и время отмены.
+
+        Args:
+            user_id: Идентификатор пользователя, отменившего бронирование.
+
+        Raises:
+            ValueError: Если текущий статус не допускает отмену.
+        """
+        if self.status not in {BookingStatus.PENDING, BookingStatus.CONFIRMED}:
+            raise ValueError(
+                'Невозможно отменить бронирование. '
+                'Допустимые статусы: "PENDING", "CONFIRMED".'
+            )
+
+        self.status = BookingStatus.CANCELLED
+        self.cancelled_at = utc_now()
+        self.cancelled_by = user_id
+
+    def complete(self, user_id: int) -> None:
+        """Завершает бронирование.
+
+        Переводит статус бронирования из "CONFIRMED" в "COMPLETED".
+        Фиксирует пользователя, выполнившего завершение, и время завершения.
+
+        Args:
+            user_id: Идентификатор пользователя, завершившего бронирование.
+
+        Raises:
+            ValueError: Если текущий статус бронирования не "CONFIRMED".
+        """
+        if self.status != BookingStatus.CONFIRMED:
+            raise ValueError(
+                'Невозможно завершить бронирование. '
+                'Статус бронирования должен быть "CONFIRMED".'
+            )
+
+        self.status = BookingStatus.COMPLETED
+        self.completed_at = utc_now()
+        self.completed_by = user_id
 
     def __repr__(self) -> str:
         return (

@@ -32,24 +32,20 @@ class BookingBase(BaseModel):
 
 
 class BookingCreate(BookingBase):
-    """Схема для создания бронирования."""
+    """Схема для создания бронирования.
 
-    cafe_id: int = Field(
-        ...,
-        description='ID кафе',
-    )
+    Статус бронирования устанавливается автоматически
+    в значение "PENDING" на уровне сервиса.
+    """
+
+    cafe_id: int = Field(..., examples=[1], description='ID кафе')
     tables_slots: list[TableSlot] = Field(
         ...,
         min_length=1,
         description='Список пар стол–временной слот',
     )
-    status: BookingStatus = Field(
-        ...,
-        description='Статус бронирования',
-    )
     booking_date: date = Field(..., description='Дата бронирования')
 
-    # TODO: Переписать на Pydantic v2
     @field_validator('booking_date')
     @classmethod
     def check_booking_date_not_past(cls, value: date) -> date:
@@ -62,9 +58,12 @@ class BookingCreate(BookingBase):
 
 
 class BookingUpdate(BaseModel):
-    """Схема для частичного обновления бронирования."""
+    """Схема для частичного обновления бронирования.
 
-    cafe_id: int | None = Field(None, description='ID кафе')
+    Не включает поля статуса и активности, так как они управляются
+    отдельными действиями (confirm/cancel/complete/activate/deactivate).
+    """
+
     tables_slots: list[TableSlot] | None = Field(
         None,
         min_length=1,
@@ -80,14 +79,6 @@ class BookingUpdate(BaseModel):
         max_length=MAX_LENGTH_BOOKING_NOTE,
         description='Примечание к бронированию',
     )
-    status: BookingStatus | None = Field(
-        None,
-        description='Статус бронирования',
-    )
-    is_active: bool | None = Field(
-        None,
-        description='Флаг активности бронирования',
-    )
     # For updates, booking_date is validated in the service after the access
     # check, so the API does not return 422 before existence/permission checks.
     booking_date: date | None = Field(None, description='Дата бронирования')
@@ -102,7 +93,15 @@ class BookingUpdate(BaseModel):
 
 
 class BookingInfo(BookingBase):
-    """Схема для чтения информации о бронировании."""
+    """Схема для чтения информации о бронировании.
+
+    Содержит полную информацию о бронировании, включая:
+    - связанные сущности (пользователь, кафе);
+    - статус;
+    - дату бронирования;
+    - техническое состояние (is_active);
+    - метаданные (created_at, updated_at).
+    """
 
     id: int = Field(
         ...,
