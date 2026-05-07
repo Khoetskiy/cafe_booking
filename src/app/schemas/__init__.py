@@ -8,6 +8,7 @@ from .cafe import (
     CafeUpdate,
 )
 from .error import ErrorResponse
+from .health import HealthCheckResponse, LivenessCheckResponse, ServiceCheck
 from .media import (
     MediaDeletedInfo,
     MediaInfo,
@@ -48,10 +49,13 @@ __all__ = [
     'CafeShortInfo',
     'CafeUpdate',
     'ErrorResponse',
+    'HealthCheckResponse',
+    'LivenessCheckResponse',
     'MediaDeletedInfo',
     'MediaInfo',
     'MediaItem',
     'MediaListInfo',
+    'ServiceCheck',
     'TableCreate',
     'TableInfo',
     'TableShortInfo',

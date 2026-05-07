@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
     auth_router,
     bookings_router,
     cafes_router,
+    health_router,
     media_router,
     slots_router,
     tables_router,
@@ -46,4 +47,9 @@ api_v1_router.include_router(
     media_router,
     prefix='/media',
     tags=['Медиа'],
+)
+api_v1_router.include_router(
+    health_router,
+    prefix='/health',
+    tags=['Health'],
 )

@@ -20,6 +20,10 @@ LOG_FILE = LOGS_DIR / 'app.log'
 LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 МБ
 LOG_BACKUP_COUNT = 10
 
+# --- Health Checks ---
+DATABASE_CHECK_TIMEOUT = 2
+REDIS_CHECK_TIMEOUT = 2
+
 # --- User ---
 ROLE_ADMIN = 'admin'
 ROLE_MANAGER = 'manager'
@@ -56,7 +60,7 @@ MAX_LENGTH_MEDIA_FILEPATH = 2048
 MEDIA_PATH_DISPLAY_LENGTH = 60
 MAX_IMAGE_SIZE_READ = 5
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
-MEDIA_DIR = Path('media')
+MEDIA_DIR = BASE_DIR / 'src' / 'media'
 ALLOWED_CONTENT_TYPES = {'image/jpeg', 'image/png'}
 
 # --- Booking ---
