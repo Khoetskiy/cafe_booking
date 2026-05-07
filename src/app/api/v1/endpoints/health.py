@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Response, status
 
 from app.api.dependencies.db import DbSession
+from app.core.responses import OK_RESPONSE, SERVICE_UNAVAILABLE_RESPONSE
 from app.schemas.health import HealthCheckResponse, LivenessCheckResponse
 from app.services.health import health_service
 
@@ -15,6 +16,7 @@ router = APIRouter()
         'Проверяет, что процесс запущен и event loop отвечает. '
         'Не проверяет внешние зависимости. '
     ),
+    responses={**OK_RESPONSE},
 )
 async def liveness_check() -> LivenessCheckResponse:
     """Всегда возвращает `{"status": "ok"}` если процесс жив."""
@@ -30,6 +32,10 @@ async def liveness_check() -> LivenessCheckResponse:
         'Возвращает `200 OK` только если все сервисы доступны. '
         'При ошибке — `503 SERVICE_UNAVAILABLE` с `status: fail` в теле.'
     ),
+    responses={
+        **OK_RESPONSE,
+        **SERVICE_UNAVAILABLE_RESPONSE,
+    },
 )
 async def readiness_check(
     session: DbSession, response: Response

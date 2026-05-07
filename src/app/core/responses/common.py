@@ -49,3 +49,10 @@ VALIDATION_ERROR_RESPONSE = {
         'description': 'Ошибка валидации данных',
     },
 }
+
+SERVICE_UNAVAILABLE_RESPONSE = {
+    503: {
+        'model': ErrorResponse,
+        'description': 'Сервис недоступен',
+    },
+}
